@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAU 310 Dynamic Meal & Schedule Matcher</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            cau: {
+              blue: '#004c97',
+              dark: '#0b1120',
+              card: '#151f32',
+              border: '#23324c',
+              hover: '#1d2d47',
+              accent: '#38bdf8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+    
+    .pulse-dot {
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.6; }
+    }
+  </style>
+</head>
+<body class="bg-[#0a0f1d] text-[#e2e8f0] font-sans antialiased h-screen flex flex-col overflow-hidden selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Bar (Notion / Linear Style) -->
+  <header class="h-14 border-b border-[#1e293b] bg-[#0f172a]/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-600 to-blue-700 text-white font-bold text-xs shadow-md shadow-sky-900/30">
+        310
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
+            CAU 310 밥집 & 일정 스마트 매칭기
+          </h1>
+          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">중앙대 310관 특화</span>
+        </div>
+        <p class="text-[11px] text-slate-400 hidden sm:block">정문 20분 전 출발 · 후문 15분 전 출발 · 교내 5분 전 복귀 공식</p>
+      </div>
+    </div>
+
+    <!-- Center Quick Weather / Seasonal Filter Toggle -->
+    <div class="flex items-center gap-2 bg-[#1e293b]/70 border border-[#334155] rounded-full px-3 py-1 text-xs">
+      <span class="text-[11px] text-slate-400">날씨:</span>
+      <button id="weatherToggleBtn" onclick="toggleWeatherState()" class="flex items-center gap-1.5 font-medium text-emerald-400 hover:text-white transition">
+        <span id="weatherIcon">☀️</span>
+        <span id="weatherText">따뜻함 / 보통 (냉면 가능)</span>
+      </button>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center space-x-2">
+      <button onclick="openManageRestaurantsModal()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#1e293b] hover:bg-[#2d3f5a] text-slate-200 border border-[#334155] transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        <span class="hidden sm:inline">밥집 DB 관리 (+추가)</span>
+      </button>
+      
+      <button onclick="openExportModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white shadow-sm shadow-sky-500/25 transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+        <span>동기화 및 내보내기</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View Grid -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- Left Sidebar: Slot & Timetable Selector (W: 360px) -->
+    <aside class="w-full lg:w-[380px] bg-[#0c1424] border-r border-[#1e293b] flex flex-col shrink-0 overflow-y-auto">
+      
+      <!-- Timetable Slot Presets -->
+      <div class="p-4 border-b border-[#1e293b] space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">내 시간표 기반 빠른 공강 선택</h2>
+          <span class="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full font-mono">2026-1학기</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button onclick="setSlotPreset('화', '12:00', '13:30', 'IMC (932호) 종료 후 ~ 운영관리 (928호) 전')" class="preset-btn p-2.5 rounded-lg bg-[#151f32] border border-[#23324c] hover:border-sky-500/50 text-left transition group">
+            <div class="flex justify-between items-center text-slate-300 group-hover:text-sky-300 font-semibold">
+              <span>화요일 점심</span>
+              <span class="text-[10px] font-mono text-sky-400">90분</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">12:00 ~ 13:30</div>
+            <div class="text-[10px] text-slate-500 truncate mt-1">310관 932호 ➔ 928호</div>
+          </button>
+
+          <button onclick="setSlotPreset('목', '12:00', '15:00', 'IMC (932호) 종료 후 ~ 조직행동론 (804호) 전')" class="preset-btn p-2.5 rounded-lg bg-[#151f32] border border-[#23324c] hover:border-sky-500/50 text-left transition group">
+            <div class="flex justify-between items-center text-slate-300 group-hover:text-sky-300 font-semibold">
+              <span>목요일 황금공강</span>
+              <span class="text-[10px] font-mono text-emerald-400">180분</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">12:00 ~ 15:00</div>
+            <div class="text-[10px] text-slate-500 truncate mt-1">310관 932호 ➔ 804호</div>
+          </button>
+
+          <button onclick="setSlotPreset('수', '13:30', '15:00', '데이터사이언스 입문 (704호) 수업 전')" class="preset-btn p-2.5 rounded-lg bg-[#151f32] border border-[#23324c] hover:border-sky-500/50 text-left transition group">
+            <div class="flex justify-between items-center text-slate-300 group-hover:text-sky-300 font-semibold">
+              <span>수요일 등교 전</span>
+              <span class="text-[10px] font-mono text-sky-400">90분</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">13:30 ~ 15:00</div>
+            <div class="text-[10px] text-slate-500 truncate mt-1">수업 시작 전 여유</div>
+          </button>
+
+          <button onclick="setSlotPreset('화', '17:00', '19:00', '미래사회와미디어 (B602호) 마친 후 저녁')" class="preset-btn p-2.5 rounded-lg bg-[#151f32] border border-[#23324c] hover:border-sky-500/50 text-left transition group">
+            <div class="flex justify-between items-center text-slate-300 group-hover:text-sky-300 font-semibold">
+              <span>화요일 저녁식사</span>
+              <span class="text-[10px] font-mono text-purple-400">120분</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">17:00 ~ 19:00</div>
+            <div class="text-[10px] text-slate-500 truncate mt-1">수업 종료 후 닭발 가능</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Custom Time & Condition Form -->
+      <div class="p-4 space-y-3.5 flex-1">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">직접 시간 지정 및 시뮬레이션</h2>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">식사 출발 시각 (310관)</label>
+            <input type="time" id="inputStartTime" value="12:00" onchange="runRecommendationEngine()" class="w-full bg-[#151f32] border border-[#23324c] rounded-lg px-2.5 py-1.5 text-white font-mono focus:border-sky-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">다음 일정 복귀 시각</label>
+            <input type="time" id="inputEndTime" value="13:30" onchange="runRecommendationEngine()" class="w-full bg-[#151f32] border border-[#23324c] rounded-lg px-2.5 py-1.5 text-white font-mono focus:border-sky-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Calculated Available Window Badge -->
+        <div class="p-3 rounded-lg bg-[#121c2e] border border-[#1e2f4a] flex items-center justify-between">
+          <div>
+            <div class="text-[11px] text-slate-400">계산된 순수 가용 시간</div>
+            <div id="displayAvailableWindow" class="text-base font-bold text-sky-400 font-mono">90분 (1시간 30분)</div>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-medium">안전 이동 마진 포함</span>
+          </div>
+        </div>
+
+        <!-- Strict Movement Rule Cheat Sheet -->
+        <div class="p-3 rounded-lg bg-[#0f172a] border border-[#1e293b] space-y-2 text-xs">
+          <div class="font-semibold text-slate-300 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            적용 중인 고저차/동선 공식
+          </div>
+          <ul class="text-[11px] text-slate-400 space-y-1 list-disc list-inside">
+            <li><strong class="text-slate-200">정문:</strong> 수업 시작 <span class="text-amber-400 font-semibold">20분 전</span> 밥집 출발 필수</li>
+            <li><strong class="text-slate-200">후문:</strong> 수업 시작 <span class="text-sky-400 font-semibold">15분 전</span> 밥집 출발 필수</li>
+            <li><strong class="text-slate-200">교내(310/303 등):</strong> 수업 <span class="text-emerald-400 font-semibold">5분 전</span> 이동</li>
+            <li><strong class="text-slate-200">기본 식사시간:</strong> 착석 후 <span class="text-slate-200 font-semibold">40분</span> 고정 산정</li>
+          </ul>
+        </div>
+
+        <!-- Selected Meal Staging for Sync -->
+        <div id="stagedMealContainer" class="p-3 rounded-lg bg-sky-950/20 border border-sky-800/40 text-xs hidden">
+          <div class="flex items-center justify-between text-sky-300 font-semibold mb-1">
+            <span>선택된 최종 밥집 블록</span>
+            <span id="stagedLocationBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-200">정문</span>
+          </div>
+          <div id="stagedMealName" class="text-white font-bold text-sm">칠기마라탕</div>
+          <div id="stagedMealSchedule" class="text-[11px] text-slate-300 mt-1">12:00 - 13:10 (13:10에 출발하여 310관 도착)</div>
+          <button onclick="openExportModal()" class="w-full mt-2 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition">
+            이 밥집 일정 내보내기 (iCloud/투두)
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Right Content: Real-time Recommendation Board -->
+    <main class="flex-1 flex flex-col bg-[#080d19] overflow-hidden">
+      
+      <!-- Filter Bar & Summary Header -->
+      <div class="p-4 border-b border-[#1e293b] bg-[#0c1322] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="text-xs text-slate-400">구역 필터:</span>
+          <button onclick="setAreaFilter('all')" id="filter-all" class="filter-tab px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-600 text-white transition">전체보기</button>
+          <button onclick="setAreaFilter('정문')" id="filter-정문" class="filter-tab px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-[#1a2639] transition">정문</button>
+          <button onclick="setAreaFilter('학교 안')" id="filter-학교 안" class="filter-tab px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-[#1a2639] transition">학교 안 (310/303)</button>
+          <button onclick="setAreaFilter('후문')" id="filter-후문" class="filter-tab px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-[#1a2639] transition">후문</button>
+        </div>
+
+        <div class="flex items-center space-x-3 text-xs">
+          <span class="flex items-center gap-1.5 text-emerald-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 가능 (<span id="countAvailable">0</span>)
+          </span>
+          <span class="flex items-center gap-1.5 text-amber-400">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span> 시간 빠듯 (<span id="countTight">0</span>)
+          </span>
+          <span class="flex items-center gap-1.5 text-rose-400">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span> 조건 탈락/웨이팅 (<span id="countFailed">0</span>)
+          </span>
+        </div>
+      </div>
+
+      <!-- Recommendation Cards List (Scrollable) -->
+      <div id="restaurantCardsContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
+        <!-- Rendered Dynamically by JS -->
+      </div>
+    </main>
+
+  </div>
+
+  <!-- MODAL: Restaurant DB Manager (+ Add Restaurant) -->
+  <div id="manageModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#10192b] border border-[#233552] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 border-b border-[#233552] flex items-center justify-between bg-[#15233c]">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">DB</div>
+          <h2 class="text-sm font-bold text-white">밥집 데이터베이스 관리 및 커스텀 추가</h2>
+        </div>
+        <button onclick="closeManageRestaurantsModal()" class="text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-5 text-xs flex-1">
+        <!-- Add New Form -->
+        <div class="p-4 rounded-xl bg-[#0b1322] border border-[#1e2e47] space-y-3">
+          <div class="font-bold text-sky-400 flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            새로운 단골 밥집 추가
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">식당명</label>
+              <input type="text" id="newRestName" placeholder="예: 최고당돈가스" class="w-full bg-[#151f32] border border-[#293d5f] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">위치 구역</label>
+              <select id="newRestArea" class="w-full bg-[#151f32] border border-[#293d5f] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500">
+                <option value="정문">정문 (20분 전 출발)</option>
+                <option value="후문">후문 (15분 전 출발)</option>
+                <option value="학교 안">학교 안 (5분 전 출발)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">주요 메뉴 / 특징</label>
+              <input type="text" id="newRestMenu" placeholder="예: 치즈돈가스, 쫄면" class="w-full bg-[#151f32] border border-[#293d5f] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">도착 컷오프 제한 (선택)</label>
+              <input type="text" id="newRestCutoff" placeholder="예: 12:15 이후 도착시 웨이팅 심함" class="w-full bg-[#151f32] border border-[#293d5f] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">최소 가용시간 요구치 (분)</label>
+              <input type="number" id="newRestMinTime" value="65" class="w-full bg-[#151f32] border border-[#293d5f] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+          <div class="flex justify-end pt-1">
+            <button onclick="handleAddNewRestaurant()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition text-xs shadow-sm">
+              밥집 DB에 등록
+            </button>
+          </div>
+        </div>
+
+        <!-- Current List -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-300">현재 등록된 밥집 목록 (<span id="totalRestCount">0</span>곳)</h3>
+            <span class="text-[11px] text-slate-500">커스텀 식당은 삭제 가능</span>
+          </div>
+          <div id="restDbTableContainer" class="space-y-2">
+            <!-- Dynamic Table of Restaurants -->
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-[#233552] bg-[#121c2e] flex justify-end">
+        <button onclick="closeManageRestaurantsModal()" class="px-4 py-1.5 rounded-lg bg-[#243550] hover:bg-[#30476c] text-white text-xs font-semibold">
+          완료 및 닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Export & Synchronization Hub (Apple Calendar, Reminders, Todomate) -->
+  <div id="exportModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#10192b] border border-[#233552] rounded-xl w-full max-w-xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <div class="px-5 py-4 border-b border-[#233552] flex items-center justify-between bg-[#15233c]">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white">iCloud 캘린더 & 투두메이트 동기화 허브</h2>
+            <p class="text-[11px] text-slate-400">선택한 식사 일정과 이동 동선을 외부 앱으로 내보냅니다.</p>
+          </div>
+        </div>
+        <button onclick="closeExportModal()" class="text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+        
+        <!-- Active Target Info -->
+        <div class="p-3 rounded-lg bg-[#0d1627] border border-[#1e2f4a] flex items-center justify-between">
+          <div>
+            <span class="text-[10px] text-sky-400 font-semibold uppercase">동기화 대상 일정</span>
+            <div id="exportTargetTitle" class="text-white font-bold text-sm mt-0.5">칠기마라탕 점심</div>
+            <div id="exportTargetTime" class="text-[11px] text-slate-300 font-mono">12:00 ~ 13:10 (소요 70분)</div>
+          </div>
+          <span id="exportTargetDepart" class="text-[11px] text-amber-300 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20">
+            13:10 밥집에서 출발
+          </span>
+        </div>
+
+        <!-- Export Option 1: Apple Calendar (.ics) -->
+        <div class="p-3.5 rounded-xl bg-[#142036] border border-[#233552] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span> Apple / iCloud 캘린더 (.ics 다운로드)
+            </span>
+            <span class="text-[10px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded">원클릭 등록</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            iPhone, iPad, Mac 기본 캘린더 앱에 바로 등록되는 표준 .ics 파일을 생성합니다. 밥집 출발 알림과 이동 팁이 메모에 포함됩니다.
+          </p>
+          <button onclick="downloadIcsFile()" class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            .ics 캘린더 파일 다운로드 및 열기
+          </button>
+        </div>
+
+        <!-- Export Option 2: Todomate Fast Paste -->
+        <div class="p-3.5 rounded-xl bg-[#142036] border border-[#233552] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 투두메이트 (todomate) 일괄 텍스트 복사
+            </span>
+            <span class="text-[10px] text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded">클립보드 복사</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            투두메이트는 공개 API가 없으므로 가장 빠르고 완벽한 <strong>원클릭 서식 복사</strong>를 지원합니다. 아래 텍스트가 클립보드에 복사되며 투두메이트에 바로 붙여넣을 수 있습니다.
+          </p>
+          <div id="todomatePreviewText" class="p-2.5 rounded bg-[#0b1220] border border-[#1b2b46] font-mono text-[11px] text-emerald-300 select-all">
+            [12:00-13:10] 점심: 칠기마라탕 (13:10 출발, 310관 복귀 20분 소요) #식사
+          </div>
+          <button onclick="copyTodomateText()" class="w-full py-2 rounded-lg bg-[#1f3150] hover:bg-[#2b446e] text-slate-100 font-semibold transition flex items-center justify-center gap-1.5 border border-[#304870]">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span id="copyBtnText">투두메이트 포맷 클립보드에 복사</span>
+          </button>
+        </div>
+
+        <!-- Export Option 3: Apple Shortcuts Guide (URL Scheme) -->
+        <div class="p-3.5 rounded-xl bg-[#142036] border border-[#233552] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-purple-500"></span> iOS 단축어 (Shortcuts) 자동 생성
+            </span>
+            <span class="text-[10px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded">미리알림 연동</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            iPhone의 [미리알림] 앱에 오늘 마감으로 '밥집 출발 알림'을 자동 등록하는 단축어 실행용 URL Scheme입니다.
+          </p>
+          <button onclick="triggerShortcutsScheme()" class="w-full py-2 rounded-lg bg-purple-900/40 hover:bg-purple-800/50 text-purple-200 border border-purple-700/60 font-semibold transition text-center">
+            iOS 단축어 실행 (미리알림 자동 추가)
+          </button>
+        </div>
+
+      </div>
+
+      <div class="px-5 py-3 border-t border-[#233552] bg-[#121c2e] flex justify-end">
+        <button onclick="closeExportModal()" class="px-4 py-1.5 rounded-lg bg-[#243550] hover:bg-[#30476c] text-white text-xs font-semibold">
+          닫기
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-sky-600 text-white text-xs px-4 py-2.5 rounded-lg shadow-xl border border-sky-400/40 transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="toastMsg">복사되었습니다.</span>
+  </div>
+
+  <script>
+    /* =====================================================================
+       1. DATA STRUCTURE & USER'S PRECISE RESTAURANT RULES
+       ===================================================================== */
+    // Default departure buffers from 310관 (minutes)
+    const BUFFER_DEPARTURE = {
+      '정문': 20,    // 수업 시작 20분 전에 밥집에서 출발
+      '후문': 15,    // 수업 시작 15분 전에 밥집에서 출발 (10-15분 중 안전 15분)
+      '학교 안': 5   // 수업 시작 5분 전 출발
+    };
+
+    // Walking time from 310관 to restaurant (minutes)
+    const WALK_TO_SPOT = {
+      '정문': 10,
+      '후문': 4,
+      '학교 안': 2
+    };
+
+    let isColdWeather = false; // toggle for "이탈리아돈가스냉면"
+    let currentAreaFilter = 'all';
+
+    // Master Restaurant Database
+    let restaurantsDB = [
+      // --- 정문 (Ordered strictly by user priority) ---
+      {
+        id: 'jm-chilgi',
+        name: '칠기마라탕',
+        area: '정문',
+        menu: '마라탕, 꿔바로우',
+        priority: 1,
+        eatDuration: 40,
+        minTotalTime: 70, // 10 walk + 40 eat + 20 walk back = 70 min
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 12시 10분 넘어서 도착하면 5~15분 웨이팅. 12:10까지 도착하거나 1시 이후 가능.
+          const arrivalMinutes = startH * 60 + startM + WALK_TO_SPOT['정문'];
+          const isLateLunchRush = arrivalMinutes > (12 * 60 + 10) && arrivalMinutes < (13 * 60);
+
+          if (isLateLunchRush) {
+            // Arrives after 12:10 and before 13:00 -> Waiting 15 min added
+            const needed = WALK_TO_SPOT['정문'] + 15 + 40 + BUFFER_DEPARTURE['정문']; // 85 min
+            if (availMin >= needed) {
+              return { ok: true, tight: true, reason: '12:10 이후 도착으로 15분 웨이팅 발생. 시간 넉넉하여 통과' };
+            }
+            return { ok: false, tight: false, reason: '12:10~13:00 사이 도착 시 웨이팅(15분)으로 시간 초과 탈락' };
+          }
+          return { ok: true, tight: false, reason: '12:10 전 도착 혹은 13시 이후 도착으로 웨이팅 없음 (최우선 추천)' };
+        }
+      },
+      {
+        id: 'jm-mc',
+        name: '맥도날드',
+        area: '정문',
+        menu: '버거, 패스트푸드',
+        priority: 2,
+        eatDuration: 30,
+        minTotalTime: 60,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 12시 10분 넘으면 안됨
+          const arrivalMinutes = startH * 60 + startM + WALK_TO_SPOT['정문'];
+          if (arrivalMinutes > (12 * 60 + 10) && arrivalMinutes < (13 * 60 + 15)) {
+            return { ok: false, tight: false, reason: '12시 10분 이후 피크시간 주문 대기 폭주로 기각' };
+          }
+          return { ok: true, tight: false, reason: '12:10 이전 컷오프 통과, 쾌속 식사 가능' };
+        }
+      },
+      {
+        id: 'jm-123',
+        name: '일이삼식당',
+        area: '정문',
+        menu: '제육볶음, 찌개',
+        priority: 3,
+        eatDuration: 40,
+        minTotalTime: 70,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 12시 10분 넘어서 도착하면 웨이팅 길어서 안됨. 1시 이후 가능.
+          const arrivalMinutes = startH * 60 + startM + WALK_TO_SPOT['정문'];
+          if (arrivalMinutes > (12 * 60 + 10) && arrivalMinutes < (13 * 60)) {
+            return { ok: false, tight: false, reason: '12:10 넘으면 점심 줄이 너무 길어 입장 불가 (1시 이후 가능)' };
+          }
+          return { ok: true, tight: false, reason: '12:10 이전 또는 13시 이후 방문 조건 충족' };
+        }
+      },
+      {
+        id: 'jm-yangpun',
+        name: '양푼이',
+        area: '정문',
+        menu: '국물두루치기',
+        priority: 4,
+        eatDuration: 40, // 착석 후 나오는데 10분 걸리나 총 식사 40분
+        minTotalTime: 70,
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '조리 시간 10분 소요 감안, 총 40분 내 식사 완료 가능' };
+        }
+      },
+      {
+        id: 'jm-jungbudae',
+        name: '정 부대찌개',
+        area: '정문',
+        menu: '부대찌개, 라면사리',
+        priority: 5,
+        eatDuration: 45,
+        minTotalTime: 75,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 시간 많으면 (>= 75분 이상)
+          if (availMin < 75) {
+            return { ok: false, tight: false, reason: '부대찌개 끓이는 시간 필요 (최소 75분 이상 공강 요구)' };
+          }
+          return { ok: true, tight: availMin < 85, reason: '여유 시간 조건 충족 (75분 이상)' };
+        }
+      },
+      {
+        id: 'jm-sumok',
+        name: '수목식당',
+        area: '정문',
+        menu: '칼국수, 칼제비, 비빔국수 (흑석시장)',
+        priority: 6,
+        eatDuration: 40,
+        minTotalTime: 90,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 정말 시간 많으면 (>= 90분)
+          if (availMin < 90) {
+            return { ok: false, tight: false, reason: '시장 안쪽 위치로 도보 및 조리 대기 길어 90분 이상 필요' };
+          }
+          return { ok: true, tight: false, reason: '매우 여유로운 공강 시간에만 추천 (90분 충족)' };
+        }
+      },
+      {
+        id: 'jm-jinmi',
+        name: '진미순대',
+        area: '정문',
+        menu: '순대국밥 (흑석시장)',
+        priority: 7,
+        eatDuration: 40,
+        minTotalTime: 90,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 정말 시간 많으면 (>= 90분)
+          if (availMin < 90) {
+            return { ok: false, tight: false, reason: '시장 안쪽 도보 왕복 시간 고려 시 90분 이상 필요' };
+          }
+          return { ok: true, tight: false, reason: '매우 여유로운 공강 시간에만 추천 (90분 충족)' };
+        }
+      },
+      {
+        id: 'jm-jaepal',
+        name: '재팔이네닭발',
+        area: '정문',
+        menu: '닭발, 계란찜, 주먹밥',
+        priority: 8,
+        eatDuration: 50,
+        minTotalTime: 85,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 저녁은 시간 많으면 (>= 17:30 이후 & 85분 이상)
+          const timeMin = startH * 60 + startM;
+          if (timeMin < (17 * 60 + 30)) {
+            return { ok: false, tight: false, reason: '점심 영업 미운영 (17:30 이후 저녁 시간에만 가능)' };
+          }
+          if (availMin < 85) {
+            return { ok: false, tight: false, reason: '저녁 식사 여유 시간(85분) 부족' };
+          }
+          return { ok: true, tight: false, reason: '수업 후 저녁 시간대 여유 있는 방문에 최적' };
+        }
+      },
+      {
+        id: 'jm-cheesebob',
+        name: '치즈밥있슈',
+        area: '정문',
+        menu: '치즈밥, 떡볶이',
+        priority: 9,
+        eatDuration: 35,
+        minTotalTime: 65,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 아주 가끔 추천하기 (와일드카드 뱃지)
+          return { ok: true, tight: false, reason: '✨ 아주 가끔 별미로 당길 때 가는 히든 와일드카드!' };
+        }
+      },
+
+      // --- 학교 안 (Fastest, zero outside steep hills) ---
+      {
+        id: 'in-310',
+        name: '310관 참슬기식당',
+        area: '학교 안',
+        menu: '학식 백반, 카우버거',
+        priority: 1,
+        eatDuration: 30,
+        minTotalTime: 35, // 310관 엘베 이동 2분 + 30분 식사 + 5분 복귀 = 37분
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '310관 B4층! 건물 밖으로 나가지 않아 최단 시간 해결' };
+        }
+      },
+      {
+        id: 'in-303',
+        name: '303관 구시아푸드',
+        area: '학교 안',
+        menu: '돈가스, 덮밥, 찌개 (메뉴 엄청 많음)',
+        priority: 2,
+        eatDuration: 35,
+        minTotalTime: 45,
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '310관 바로 옆 법학관 B1층. 메뉴 선택의 폭이 매우 넓음' };
+        }
+      },
+      {
+        id: 'in-309',
+        name: '309관 기숙사식당',
+        area: '학교 안',
+        menu: '기숙사 학식 (은근 메뉴 다양)',
+        priority: 3,
+        eatDuration: 35,
+        minTotalTime: 48,
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '후문/기숙사 방향. 은근 메뉴가 많고 회전 빠름' };
+        }
+      },
+      {
+        id: 'in-308',
+        name: '308관 기숙사식당',
+        area: '학교 안',
+        menu: '기숙사 정통 학식',
+        priority: 4,
+        eatDuration: 35,
+        minTotalTime: 48,
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '정통 학식 코너로 배식 속도가 매우 빠름' };
+        }
+      },
+
+      // --- 후문 (15 min depart buffer) ---
+      {
+        id: 'hm-halmae',
+        name: '할매순대국',
+        area: '후문',
+        menu: '순대국, 뼈해장국',
+        priority: 1,
+        eatDuration: 35,
+        minTotalTime: 55,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 12시 넘으면 안됨. 넘으면 엉터리해장국으로 우회
+          const arrivalMinutes = startH * 60 + startM + WALK_TO_SPOT['후문'];
+          if (arrivalMinutes >= (12 * 60)) {
+            return { ok: false, tight: false, reason: '12시 넘으면 만석/대기! ➔ 엉터리해장국으로 자동 추천' };
+          }
+          return { ok: true, tight: false, reason: '12시 이전 입장으로 웨이팅 없이 국밥 흡입 가능' };
+        }
+      },
+      {
+        id: 'hm-eongteori',
+        name: '엉터리해장국',
+        area: '후문',
+        menu: '선지해장국, 뼈해장국',
+        priority: 2,
+        eatDuration: 35,
+        minTotalTime: 55,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 할매순대국 12시 넘었을 때의 대체재
+          return { ok: true, tight: false, reason: '할매순대국 만석일 때 12시 이후에도 든든하게 먹기 좋은 곳' };
+        }
+      },
+      {
+        id: 'hm-hangari',
+        name: '항아리된장족발',
+        area: '후문',
+        menu: '된장족발 정식, 보쌈',
+        priority: 3,
+        eatDuration: 40,
+        minTotalTime: 60,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 12시 10분 넘으면 안됨
+          const arrivalMinutes = startH * 60 + startM + WALK_TO_SPOT['후문'];
+          if (arrivalMinutes > (12 * 60 + 10) && arrivalMinutes < (13 * 60)) {
+            return { ok: false, tight: false, reason: '12시 10분 초과로 점심 정식 대기 줄 마감' };
+          }
+          return { ok: true, tight: false, reason: '12:10 이전 세이프. 푸짐한 고기 정식 추천' };
+        }
+      },
+      {
+        id: 'hm-seoul-taco',
+        name: '세울타코',
+        area: '후문',
+        menu: '타코, 부리또, 퀘사디아',
+        priority: 4,
+        eatDuration: 35,
+        minTotalTime: 55,
+        specialCheck: (startH, startM, availMin) => {
+          return { ok: true, tight: false, reason: '후문 앞 간편하고 맛있는 멕시칸 타코. 빠른 식사 가능' };
+        }
+      },
+      {
+        id: 'hm-italy-naeng',
+        name: '이탈리아돈가스냉면',
+        area: '후문',
+        menu: '돈가스, 물냉면/비빔냉면',
+        priority: 5,
+        eatDuration: 40,
+        minTotalTime: 60,
+        specialCheck: (startH, startM, availMin) => {
+          // Rule: 추울 때 안됨
+          if (isColdWeather) {
+            return { ok: false, tight: false, reason: '❄️ 현재 날씨가 쌀쌀하여 냉면 메뉴 자동 기각' };
+          }
+          return { ok: true, tight: false, reason: '돈가스와 시원한 냉면 조합 (온화한 날씨 추천)' };
+        }
+      }
+    ];
+
+    // State for staged meal
+    let currentSelectedMeal = null;
+
+    /* =====================================================================
+       2. RECOMMENDATION ENGINE LOGIC
+       ===================================================================== */
+    function runRecommendationEngine() {
+      const startTimeVal = document.getElementById('inputStartTime').value;
+      const endTimeVal = document.getElementById('inputEndTime').value;
+
+      if (!startTimeVal || !endTimeVal) return;
+
+      const [sH, sM] = startTimeVal.split(':').map(Number);
+      const [eH, eM] = endTimeVal.split(':').map(Number);
+
+      const startTotal = sH * 60 + sM;
+      let endTotal = eH * 60 + eM;
+      if (endTotal < startTotal) endTotal += 24 * 60; // next day handle
+
+      const availableMinutes = endTotal - startTotal;
+
+      document.getElementById('displayAvailableWindow').innerText = `${availableMinutes}분 (${Math.floor(availableMinutes / 60)}시간 ${availableMinutes % 60}분)`;
+
+      let availableCount = 0;
+      let tightCount = 0;
+      let failedCount = 0;
+
+      const container = document.getElementById('restaurantCardsContainer');
+      container.innerHTML = '';
+
+      // Evaluate each restaurant
+      const evaluatedList = restaurantsDB.map(rest => {
+        const walkTo = WALK_TO_SPOT[rest.area] || 5;
+        const walkBack = BUFFER_DEPARTURE[rest.area] || 15;
+        const eatTime = rest.eatDuration || 40;
+        const baseNeeded = walkTo + eatTime + walkBack;
+
+        // Custom Rule Checks
+        const special = rest.specialCheck ? rest.specialCheck(sH, sM, availableMinutes) : { ok: true, reason: '기본 조건 충족' };
+
+        let status = 'available'; // 'available' | 'tight' | 'failed'
+        let statusText = '적합 (안전 통과)';
+        let badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        let detailReason = special.reason;
+
+        if (!special.ok) {
+          status = 'failed';
+          statusText = '조건 미충족 탈락';
+          badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+        } else if (availableMinutes < baseNeeded) {
+          status = 'failed';
+          statusText = '가용 시간 부족 탈락';
+          badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+          detailReason = `최소 ${baseNeeded}분 필요하나 현재 가용시간은 ${availableMinutes}분`;
+        } else if (availableMinutes - baseNeeded <= 10 || special.tight) {
+          status = 'tight';
+          statusText = '시간 빠듯함';
+          badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+        }
+
+        // Calculate Departure time from spot
+        // Must leave at (endTime - walkBack)
+        const departTotal = endTotal - walkBack;
+        const depH = Math.floor(departTotal / 60) % 24;
+        const depM = departTotal % 60;
+        const departTimeStr = `${String(depH).padStart(2, '0')}:${String(depM).padStart(2, '0')}`;
+
+        return {
+          ...rest,
+          status,
+          statusText,
+          badgeColor,
+          detailReason,
+          baseNeeded,
+          walkTo,
+          walkBack,
+          departTimeStr,
+          eatTime
+        };
+      });
+
+      // Filter by Area
+      const filtered = evaluatedList.filter(item => {
+        if (currentAreaFilter === 'all') return true;
+        return item.area === currentAreaFilter;
+      });
+
+      // Sort: Available first, then tight, then failed. Within same status, sort by priority
+      filtered.sort((a, b) => {
+        const order = { 'available': 1, 'tight': 2, 'failed': 3 };
+        if (order[a.status] !== order[b.status]) {
+          return order[a.status] - order[b.status];
+        }
+        return (a.priority || 99) - (b.priority || 99);
+      });
+
+      // Render cards
+      filtered.forEach(item => {
+        if (item.status === 'available') availableCount++;
+        else if (item.status === 'tight') tightCount++;
+        else failedCount++;
+
+        const card = document.createElement('div');
+        const isSelected = currentSelectedMeal && currentSelectedMeal.id === item.id;
+        card.className = `p-4 rounded-xl border transition-all flex flex-col justify-between ${
+          item.status === 'failed' 
+            ? 'bg-[#0f1728]/40 border-[#1e2a3e] opacity-60' 
+            : isSelected 
+              ? 'bg-[#182a4a] border-sky-400 shadow-lg shadow-sky-900/20 ring-1 ring-sky-400' 
+              : 'bg-[#121c2e] border-[#22334e] hover:border-sky-500/60 hover:bg-[#152238]'
+        }`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded ${
+                  item.area === '정문' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' :
+                  item.area === '학교 안' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                  'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                }">${item.area}</span>
+                <h3 class="font-bold text-sm text-white">${item.name}</h3>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded border ${item.badgeColor}">${item.statusText}</span>
+            </div>
+
+            <div class="text-xs text-slate-300 font-medium mb-2">${item.menu}</div>
+
+            <div class="p-2.5 rounded-lg bg-[#0a111e] border border-[#1a273c] text-[11px] space-y-1 mb-3">
+              <div class="text-slate-300 font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>${item.detailReason}</span>
+              </div>
+              <div class="text-slate-500 flex justify-between pt-1 border-t border-[#162337] font-mono text-[10px]">
+                <span>소요: ${item.baseNeeded}분 (식사 ${item.eatTime}분)</span>
+                <span class="text-amber-400 font-medium font-sans">출발: ${item.departTimeStr} 필수</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-[#1b2b44] flex items-center justify-between">
+            <span class="text-[10px] text-slate-400">
+              ${item.area === '정문' ? '수업 20분 전 출발' : item.area === '후문' ? '수업 15분 전 출발' : '수업 5분 전 복귀'}
+            </span>
+            <button onclick="selectMealForStaging('${item.id}')" ${item.status === 'failed' ? 'disabled' : ''} class="px-2.5 py-1 rounded text-xs font-semibold ${
+              item.status === 'failed' 
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                : isSelected
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm'
+            } transition">
+              ${isSelected ? '✓ 선택됨' : '이 밥집 선택'}
+            </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      // Update counters
+      document.getElementById('countAvailable').innerText = availableCount;
+      document.getElementById('countTight').innerText = tightCount;
+      document.getElementById('countFailed').innerText = failedCount;
+
+      // Auto stage top choice if none chosen yet
+      if (!currentSelectedMeal && filtered.length > 0) {
+        const topSafe = filtered.find(f => f.status === 'available');
+        if (topSafe) selectMealForStaging(topSafe.id);
+      }
+    }
+
+    /* =====================================================================
+       3. INTERACTION & PRESETS
+       ===================================================================== */
+    function setSlotPreset(day, start, end, label) {
+      document.getElementById('inputStartTime').value = start;
+      document.getElementById('inputEndTime').value = end;
+      runRecommendationEngine();
+      showToast(`${day}요일 [${start} - ${end}] 공강으로 시간표가 전환되었습니다.`);
+    }
+
+    function setAreaFilter(area) {
+      currentAreaFilter = area;
+      document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.className = 'filter-tab px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-[#1a2639] transition';
+      });
+      const activeTab = document.getElementById(`filter-${area}`);
+      if (activeTab) {
+        activeTab.className = 'filter-tab px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-600 text-white transition';
+      }
+      runRecommendationEngine();
+    }
+
+    function toggleWeatherState() {
+      isColdWeather = !isColdWeather;
+      const icon = document.getElementById('weatherIcon');
+      const text = document.getElementById('weatherText');
+      const btn = document.getElementById('weatherToggleBtn');
+
+      if (isColdWeather) {
+        icon.innerText = '❄️';
+        text.innerText = '쌀쌀함 / 추움 (냉면 자동 제외)';
+        btn.className = 'flex items-center gap-1.5 font-medium text-sky-300 hover:text-white transition';
+        showToast('날씨 조건 [추움] 적용: 냉면 전문점이 자동 제외됩니다.');
+      } else {
+        icon.innerText = '☀️';
+        text.innerText = '따뜻함 / 보통 (냉면 가능)';
+        btn.className = 'flex items-center gap-1.5 font-medium text-emerald-400 hover:text-white transition';
+        showToast('날씨 조건 [보통] 적용');
+      }
+      runRecommendationEngine();
+    }
+
+    function selectMealForStaging(restId) {
+      const rest = restaurantsDB.find(r => r.id === restId);
+      if (!rest) return;
+
+      const startTimeVal = document.getElementById('inputStartTime').value;
+      const endTimeVal = document.getElementById('inputEndTime').value;
+      const [eH, eM] = endTimeVal.split(':').map(Number);
+      const walkBack = BUFFER_DEPARTURE[rest.area] || 15;
+      const departTotal = (eH * 60 + eM) - walkBack;
+      const depH = Math.floor(departTotal / 60) % 24;
+      const depM = departTotal % 60;
+      const departTimeStr = `${String(depH).padStart(2, '0')}:${String(depM).padStart(2, '0')}`;
+
+      currentSelectedMeal = {
+        ...rest,
+        startTime: startTimeVal,
+        endTime: endTimeVal,
+        departTime: departTimeStr
+      };
+
+      // Show staged panel on left
+      const stagedBox = document.getElementById('stagedMealContainer');
+      stagedBox.classList.remove('hidden');
+      document.getElementById('stagedLocationBadge').innerText = rest.area;
+      document.getElementById('stagedMealName').innerText = rest.name;
+      document.getElementById('stagedMealSchedule').innerText = `${startTimeVal} - ${endTimeVal} (${departTimeStr}에 밥집에서 310관으로 출발)`;
+
+      // Update Export Modal texts
+      document.getElementById('exportTargetTitle').innerText = `${rest.name} (${rest.menu})`;
+      document.getElementById('exportTargetTime').innerText = `${startTimeVal} ~ ${endTimeVal}`;
+      document.getElementById('exportTargetDepart').innerText = `${departTimeStr} 밥집 출발`;
+
+      const todomateStr = `[${startTimeVal}-${endTimeVal}] 점심: ${rest.name} (${departTimeStr} 출발, 310관 복귀 ${walkBack}분 전) #식사`;
+      document.getElementById('todomatePreviewText').innerText = todomateStr;
+
+      runRecommendationEngine();
+    }
+
+    /* =====================================================================
+       4. RESTAURANT DB MANAGER (+ ADD / DELETE)
+       ===================================================================== */
+    function openManageRestaurantsModal() {
+      renderDbTable();
+      document.getElementById('manageModal').classList.remove('hidden');
+    }
+    function closeManageRestaurantsModal() {
+      document.getElementById('manageModal').classList.add('hidden');
+      runRecommendationEngine();
+    }
+
+    function renderDbTable() {
+      const container = document.getElementById('restDbTableContainer');
+      container.innerHTML = '';
+      document.getElementById('totalRestCount').innerText = restaurantsDB.length;
+
+      restaurantsDB.forEach(rest => {
+        const row = document.createElement('div');
+        row.className = 'p-2.5 rounded bg-[#131d2e] border border-[#20314a] flex items-center justify-between text-xs';
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${
+              rest.area === '정문' ? 'bg-orange-500/20 text-orange-300' :
+              rest.area === '학교 안' ? 'bg-emerald-500/20 text-emerald-300' :
+              'bg-purple-500/20 text-purple-300'
+            }">${rest.area}</span>
+            <span class="font-bold text-white">${rest.name}</span>
+            <span class="text-slate-400 text-[11px] truncate max-w-[160px] sm:max-w-xs">${rest.menu}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-500 font-mono">기본${rest.eatDuration || 40}분</span>
+            ${rest.custom ? `<button onclick="deleteCustomRestaurant('${rest.id}')" class="text-rose-400 hover:text-rose-300 text-[11px]">삭제</button>` : '<span class="text-[10px] text-slate-600">시스템</span>'}
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function handleAddNewRestaurant() {
+      const name = document.getElementById('newRestName').value.trim();
+      const area = document.getElementById('newRestArea').value;
+      const menu = document.getElementById('newRestMenu').value.trim() || '일반 식사';
+      const cutoff = document.getElementById('newRestCutoff').value.trim();
+      const minTime = parseInt(document.getElementById('newRestMinTime').value) || 60;
+
+      if (!name) {
+        alert('식당명을 입력해주세요.');
+        return;
+      }
+
+      const newId = 'custom-' + Date.now();
+      const newRest = {
+        id: newId,
+        name,
+        area,
+        menu,
+        priority: 15,
+        eatDuration: 40,
+        minTotalTime: minTime,
+        custom: true,
+        specialCheck: (startH, startM, availMin) => {
+          if (availMin < minTime) {
+            return { ok: false, tight: false, reason: `최소 ${minTime}분 이상 공강 필요` };
+          }
+          if (cutoff) {
+            return { ok: true, tight: false, reason: cutoff };
+          }
+          return { ok: true, tight: false, reason: '사용자 지정 단골집' };
+        }
+      };
+
+      restaurantsDB.push(newRest);
+      document.getElementById('newRestName').value = '';
+      document.getElementById('newRestMenu').value = '';
+      document.getElementById('newRestCutoff').value = '';
+
+      renderDbTable();
+      showToast(`새 식당 [${name}]이 성공적으로 등록되었습니다.`);
+    }
+
+    function deleteCustomRestaurant(id) {
+      restaurantsDB = restaurantsDB.filter(r => r.id !== id);
+      renderDbTable();
+      showToast('식당이 삭제되었습니다.');
+    }
+
+    /* =====================================================================
+       5. EXPORT & SYNC (iCloud / Apple Reminders / todomate)
+       ===================================================================== */
+    function openExportModal() {
+      if (!currentSelectedMeal) {
+        showToast('먼저 밥집 카드를 선택해주세요.');
+        return;
+      }
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+    function closeExportModal() {
+      document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    // 1) Apple Calendar (.ics) generation
+    function downloadIcsFile() {
+      if (!currentSelectedMeal) return;
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+
+      const [sH, sM] = currentSelectedMeal.startTime.split(':');
+      const [eH, eM] = currentSelectedMeal.endTime.split(':');
+
+      const dtStart = `${year}${month}${day}T${sH}${sM}00`;
+      const dtEnd = `${year}${month}${day}T${eH}${eM}00`;
+
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//CAU 310 Dynamic Meal Matcher//KO',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        `UID:${Date.now()}@cau310matcher.internal`,
+        `DTSTAMP:${year}${month}${day}T120000Z`,
+        `DTSTART;TZID=Asia/Seoul:${dtStart}`,
+        `DTEND;TZID=Asia/Seoul:${dtEnd}`,
+        `SUMMARY:[점심] ${currentSelectedMeal.name} (${currentSelectedMeal.area})`,
+        `DESCRIPTION:${currentSelectedMeal.name} 식사\\n- 메뉴: ${currentSelectedMeal.menu}\\n- 주의: ${currentSelectedMeal.departTime}에 밥집에서 출발하여 310관 이동!\\n- 추천 이유: ${currentSelectedMeal.detailReason || ''}`,
+        `LOCATION:중앙대학교 ${currentSelectedMeal.area} ${currentSelectedMeal.name}`,
+        'STATUS:CONFIRMED',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT15M',
+        'ACTION:DISPLAY',
+        `DESCRIPTION:수업 복귀 알림 (${currentSelectedMeal.departTime} 출발)`,
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.setAttribute('download', `CAU_Meal_${currentSelectedMeal.name}.ics`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('Apple 캘린더용 .ics 파일이 다운로드되었습니다.');
+    }
+
+    // 2) todomate text format copy (using execCommand for iframe sandbox safety)
+    function copyTodomateText() {
+      const textToCopy = document.getElementById('todomatePreviewText').innerText;
+      
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = textToCopy;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      try {
+        document.execCommand('copy');
+        showToast('투두메이트 포맷이 클립보드에 복사되었습니다! 바로 붙여넣으세요.');
+        document.getElementById('copyBtnText').innerText = '✓ 복사 완료!';
+        setTimeout(() => {
+          document.getElementById('copyBtnText').innerText = '투두메이트 포맷 클립보드에 복사';
+        }, 2000);
+      } catch (err) {
+        showToast('복사에 실패했습니다. 텍스트를 직접 드래그 복사해주세요.');
+      }
+      document.body.removeChild(tempTextArea);
+    }
+
+    // 3) iOS Shortcuts Trigger URL Scheme
+    function triggerShortcutsScheme() {
+      if (!currentSelectedMeal) return;
+      const title = encodeURIComponent(`[${currentSelectedMeal.departTime} 출발] ${currentSelectedMeal.name} 점심`);
+      // Standard shortcuts scheme or reminder url
+      const url = `shortcuts://run-shortcut?name=AddReminder&input=${title}`;
+      window.location.href = url;
+      showToast('iOS 단축어 호출을 시도했습니다.');
+    }
+
+    // Utility Toast
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2400);
+    }
+
+    // Initialize on window load
+    window.onload = function() {
+      runRecommendationEngine();
+    };
+  </script>
+</body>
+</html>
