@@ -3,18 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CAU 310 Dynamic Life Calendar & Meal Matcher</title>
+  <title>CAU 310 주간 라이프 캘린더 & 밥집 매처</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: { sans: ['Pretendard', 'sans-serif'] },
           colors: {
-            cau: { blue: '#004b91', dark: '#002855', gold: '#c5a059', light: '#e8f0fe' },
-            slate: { 850: '#151f32', 950: '#070b13' }
+            pastel: {
+              blue: '#e0edff',
+              blueText: '#1d4ed8',
+              orange: '#ffedd5',
+              orangeText: '#c2410c',
+              green: '#dcfce7',
+              greenText: '#15803d',
+              purple: '#f3e8ff',
+              purpleText: '#7e22ce',
+              rose: '#ffe4e6',
+              roseText: '#be123c'
+            }
           }
         }
       }
@@ -22,375 +31,486 @@
   </script>
   <style>
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.3); border-radius: 4px; }
-    .badge-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
 </head>
-<body class="bg-[#0f172a] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+<body class="bg-[#f8fafc] text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
 
   <!-- Header -->
-  <header class="border-b border-slate-800 bg-[#0a0f1d]/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+  <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-900/30">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-400 to-indigo-300 flex items-center justify-center font-bold text-white shadow-sm">
         310
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-base font-bold text-slate-100">중앙대 310관 동적 스케줄러 & 밥집 매처</h1>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/60 font-medium">실시간 연동</span>
+          <h1 class="text-base font-bold text-slate-800 tracking-tight">중앙대 310관 주간 캘린더</h1>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 font-medium">파스텔 에디션</span>
         </div>
-        <p class="text-xs text-slate-400">iCloud 캘린더 자동 파싱 & 경사도·웨이팅 현실 제약 엔진</p>
+        <p class="text-xs text-slate-500">iCloud 캘린더 연동 & 밥집 자동 추천</p>
       </div>
     </div>
 
+    <!-- Actions -->
     <div class="flex flex-wrap items-center gap-2">
       <!-- Weather Toggle -->
-      <button id="weather-btn" onclick="toggleWeather()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-750 text-xs font-medium text-slate-300 transition">
+      <button id="weather-btn" onclick="toggleWeather()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-600 transition shadow-xs">
         <span id="weather-icon">☀️</span>
-        <span id="weather-text">날씨: 보통</span>
+        <span id="weather-text">날씨: 쾌청</span>
       </button>
 
-      <!-- Sync Status Badge -->
-      <div id="sync-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-xs text-slate-300">
-        <span class="w-2 h-2 rounded-full bg-amber-400 badge-pulse" id="sync-dot"></span>
-        <span id="sync-label">동기화 대기</span>
+      <!-- Sync Status -->
+      <div id="sync-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-400" id="sync-dot"></span>
+        <span id="sync-label">동기화 준비</span>
       </div>
 
-      <!-- Actions -->
-      <button onclick="triggerICloudSync()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-700/20 transition active:scale-95">
+      <button onclick="triggerICloudSync()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold shadow-sm transition active:scale-95">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        <span>iCloud 동기화</span>
+        <span>iCloud 새로고침</span>
       </button>
 
-      <button onclick="openHitlModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-600/60 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-medium transition">
-        <span>🤖 AI 동적 재배치 검증</span>
-      </button>
-
-      <button onclick="openConfigModal()" class="p-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="설정">
+      <button onclick="openConfigModal()" class="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-xs" title="설정">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
     </div>
   </header>
 
-  <!-- Notice Banner -->
-  <div id="status-banner" class="hidden bg-slate-800/90 border-b border-slate-700 px-4 py-2 text-xs flex items-center justify-between transition-all">
-    <div class="flex items-center gap-2" id="status-msg">
-      <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-      <span>알림 메시지</span>
-    </div>
-    <button onclick="document.getElementById('status-banner').classList.add('hidden')" class="text-slate-400 hover:text-slate-200 text-sm">✕</button>
-  </div>
+  <!-- Main Grid Layout -->
+  <main class="flex-1 max-w-[1750px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-  <!-- Main Container -->
-  <main class="flex-1 max-w-[1700px] w-full mx-auto p-3 lg:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
-
-    <!-- Left: Schedule & TimeTable (8 cols) -->
+    <!-- Center/Left: Weekly Calendar View (8 cols) -->
     <section class="xl:col-span-8 flex flex-col gap-4">
       
-      <!-- Day Selector & Quick Stats -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-        <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
-          <button onclick="selectDay('화')" id="tab-화" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition bg-blue-600 text-white">화요일</button>
-          <button onclick="selectDay('수')" id="tab-수" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition text-slate-400 hover:text-slate-200">수요일</button>
-          <button onclick="selectDay('목')" id="tab-목" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition text-slate-400 hover:text-slate-200">목요일</button>
-          <button onclick="selectDay('금')" id="tab-금" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition text-slate-400 hover:text-slate-200">금요일</button>
-          <button onclick="selectDay('월')" id="tab-월" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition text-slate-400 hover:text-slate-200">월공강</button>
+      <!-- Legend & Stats -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-slate-800">이번 주 주간 시간표</span>
+          <span class="text-xs text-slate-400">|</span>
+          <span class="text-xs text-slate-500">클릭하면 해당 요일의 밥집 추천 목록이 바뀝니다.</span>
         </div>
-
-        <div class="flex items-center gap-3 text-xs text-slate-400">
+        <div class="flex items-center gap-4 text-xs">
           <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded bg-blue-500/80"></span>
-            <span>중앙대 정규 강의</span>
+            <span class="w-3 h-3 rounded bg-pastel-blue border border-blue-200"></span>
+            <span class="text-slate-600 font-medium">310관 강의</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded bg-amber-500/80"></span>
-            <span>iCloud 캘린더 일정</span>
+            <span class="w-3 h-3 rounded bg-pastel-orange border border-orange-200"></span>
+            <span class="text-slate-600 font-medium">iCloud 일정</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded bg-emerald-500/80"></span>
-            <span>추천 식사 블록</span>
+            <span class="w-3 h-3 rounded bg-pastel-green border border-green-200"></span>
+            <span class="text-slate-600 font-medium">식사 공강 블록</span>
           </div>
         </div>
       </div>
 
-      <!-- TimeTable Canvas -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-          <div class="flex items-center gap-2">
-            <h2 id="day-title" class="font-bold text-sm text-slate-200">화요일 타임테이블</h2>
-            <span id="gap-summary" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">공강 1개 감지됨</span>
+      <!-- Weekly Calendar Grid Container -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs overflow-x-auto custom-scrollbar">
+        <div class="min-w-[700px]">
+          <!-- Day Header Row -->
+          <div class="grid grid-cols-6 border-b border-slate-200 pb-3 mb-2 text-center text-xs font-semibold text-slate-600">
+            <div class="text-slate-400">시간</div>
+            <div id="col-head-월" onclick="setActiveDay('월')" class="cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition">월 (공강)</div>
+            <div id="col-head-화" onclick="setActiveDay('화')" class="cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition text-blue-600 font-bold bg-blue-50/50">화요일</div>
+            <div id="col-head-수" onclick="setActiveDay('수')" class="cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition">수요일</div>
+            <div id="col-head-목" onclick="setActiveDay('목')" class="cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition">목요일</div>
+            <div id="col-head-금" onclick="setActiveDay('금')" class="cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition">금요일</div>
           </div>
-          <span class="text-xs text-slate-400">모든 강의 310관 (경영경제관) 기준</span>
-        </div>
 
-        <!-- Timeline Container -->
-        <div id="timeline-container" class="relative min-h-[520px] bg-slate-950/60 rounded-lg border border-slate-800/80 p-3 overflow-y-auto custom-scrollbar flex flex-col gap-2.5">
-          <!-- Rendered via JS -->
+          <!-- Calendar Body Grid -->
+          <div class="grid grid-cols-6 relative min-h-[580px] divide-x divide-slate-100" id="calendar-body">
+            <!-- Col 0: Hours (09:00 - 18:00) -->
+            <div class="flex flex-col text-[11px] text-slate-400 font-mono py-1 space-y-9 text-center select-none">
+              <div>09:00</div>
+              <div>10:00</div>
+              <div>11:00</div>
+              <div>12:00</div>
+              <div>13:00</div>
+              <div>14:00</div>
+              <div>15:00</div>
+              <div>16:00</div>
+              <div>17:00</div>
+              <div>18:00</div>
+            </div>
+
+            <!-- Day Columns: 월, 화, 수, 목, 금 -->
+            <div id="cal-col-월" class="relative p-1 bg-slate-50/40"></div>
+            <div id="cal-col-화" class="relative p-1 bg-blue-50/20"></div>
+            <div id="cal-col-수" class="relative p-1 bg-slate-50/40"></div>
+            <div id="cal-col-목" class="relative p-1 bg-slate-50/40"></div>
+            <div id="cal-col-금" class="relative p-1 bg-slate-50/40"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Todomate Export / Batch Action -->
-      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div class="flex items-center gap-2 text-slate-300">
-          <span class="text-base">📋</span>
-          <span>선택된 요일의 추천 일정을 투두메이트나 애플 캘린더로 내보냅니다.</span>
+      <!-- Quick Export Footer -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+        <div class="flex items-center gap-2 text-slate-600">
+          <span class="text-base">✨</span>
+          <span>선택된 요일(<strong id="selected-day-label" class="text-blue-600">화요일</strong>)의 추천 일정과 동선을 내보낼 수 있습니다.</span>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="copyToTodomate()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium border border-slate-700 transition flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-            <span>투두메이트 포맷 복사</span>
+          <button onclick="copyToTodomate()" class="px-3.5 py-2 rounded-xl bg-pastel-rose/80 hover:bg-pastel-rose text-pastel-roseText font-semibold transition flex items-center gap-1.5 shadow-2xs">
+            <span>📋 투두메이트 복사</span>
           </button>
-          <button onclick="exportSingleIcs()" class="px-3 py-1.5 rounded-lg bg-blue-900/40 hover:bg-blue-800/50 text-blue-300 font-medium border border-blue-700/60 transition flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span>Apple 캘린더 (.ics) 저장</span>
+          <button onclick="exportIcsFile()" class="px-3.5 py-2 rounded-xl bg-pastel-blue/80 hover:bg-pastel-blue text-pastel-blueText font-semibold transition flex items-center gap-1.5 shadow-2xs">
+            <span>📅 Apple 캘린더 저장</span>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- Right: Meal Matcher Engine & DB (4 cols) -->
+    <!-- Right: Meal Matcher & Apple Reminders Widget (4 cols) -->
     <section class="xl:col-span-4 flex flex-col gap-4">
-      
-      <!-- Recommended Card Container -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+
+      <!-- Apple Reminders Style Widget -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col gap-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div class="flex items-center gap-2">
-            <span class="text-base">🍱</span>
-            <h2 class="font-bold text-sm text-slate-200">현재 공강 맞춤 밥집 추천</h2>
+            <span class="w-6 h-6 rounded-lg bg-pastel-orange text-pastel-orangeText flex items-center justify-center text-xs font-bold">✓</span>
+            <h2 class="font-bold text-sm text-slate-800">미리알림 (To-Do)</h2>
           </div>
-          <span id="active-slot-badge" class="text-xs px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/60 font-mono">12:00 ~ 13:30 (90분)</span>
+          <span class="text-[11px] text-slate-400" id="todo-count">0개 완료</span>
         </div>
 
-        <!-- Recommendation List -->
-        <div id="meal-recommendations" class="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
+        <!-- Task Input -->
+        <div class="flex gap-2">
+          <input type="text" id="todo-input" placeholder="새로운 할 일 또는 과제 추가..." class="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-300 transition" onkeypress="if(event.key==='Enter') addTodo()">
+          <button onclick="addTodo()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition">추가</button>
+        </div>
+
+        <!-- Task List -->
+        <div id="todo-list" class="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
           <!-- Rendered via JS -->
         </div>
       </div>
-
-      <!-- Real Restaurant Rules Guide -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">현실 제약 조건 규칙집</h3>
-          <button onclick="openAddRestaurantModal()" class="text-xs text-blue-400 hover:text-blue-300 font-medium">+ 밥집 추가</button>
+      
+      <!-- Meal Matcher Card -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col gap-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🍱</span>
+            <h2 class="font-bold text-sm text-slate-800">맞춤 밥집 추천</h2>
+          </div>
+          <span id="meal-slot-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-pastel-blue text-pastel-blueText font-medium">12:00 ~ 13:30 (90분)</span>
         </div>
 
-        <div class="text-xs text-slate-300 space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
-          <div class="p-2 rounded bg-slate-950/70 border border-slate-800/80">
-            <span class="font-semibold text-rose-400">정문 밥집 (수업 20분 전 출발):</span>
-            <p class="text-slate-400 mt-0.5">칠기마라탕(12:10 넘으면 웨이팅 15분 가산, 1시 이후 안전), 맥도날드/일이삼(12:10 컷), 양푼이(조리 10분), 정부대찌개(75분+), 수목·진미순대(90분+)</p>
-          </div>
-          <div class="p-2 rounded bg-slate-950/70 border border-slate-800/80">
-            <span class="font-semibold text-amber-400">후문 밥집 (수업 10~15분 전 출발):</span>
-            <p class="text-slate-400 mt-0.5">할매순대국(12시 넘으면 기각 ➔ 엉터리해장국), 항아리된장족발(12:10 컷), 이탈리아돈가스냉면(추운 날 기각), 세울타코, 봉구스밥버거</p>
-          </div>
-          <div class="p-2 rounded bg-slate-950/70 border border-slate-800/80">
-            <span class="font-semibold text-emerald-400">교내 초밀착 (수업 5분 전 이동):</span>
-            <p class="text-slate-400 mt-0.5">310관 B4 참슬기식당(0분 컷), 303관 법학관 구시아푸드, 308/309관 기숙사 식당</p>
-          </div>
+        <!-- Recommendation List -->
+        <div id="meal-list" class="flex flex-col gap-2.5 max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
+          <!-- Rendered via JS -->
         </div>
       </div>
 
     </section>
   </main>
 
-  <!-- Modals -->
-
-  <!-- HITL Verification Desk Modal -->
-  <div id="hitl-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-700/60 flex items-center justify-center text-emerald-400 text-sm">✓</div>
-          <div>
-            <h3 class="font-bold text-slate-100 text-sm">사고의 주체성 확보: HITL 검증 데스크</h3>
-            <p class="text-xs text-slate-400">AI의 1차 제안을 현실 제약 조건으로 검증하고 최종 채택합니다.</p>
-          </div>
-        </div>
-        <button onclick="closeHitlModal()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
-      </div>
-
-      <div class="flex flex-col gap-3 text-xs">
-        <div class="p-3.5 rounded-xl bg-rose-950/30 border border-rose-800/50 flex gap-3">
-          <span class="text-base">🚫</span>
-          <div>
-            <div class="font-semibold text-rose-300">[거부] 비현실적 지형 및 이동시간 기각</div>
-            <p class="text-slate-300 mt-1">AI 1차 제안: "12:00 IMC 종료 후 흑석시장 수목식당 방문 후 13:30 운영관리 출석"<br>
-            <strong class="text-rose-400">기각 사유:</strong> 310관 ➔ 시장 왕복 40분 소요 + 급경사 등판 불가. 35분 공강에 흑석시장 배정 원천 차단.</p>
-          </div>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/50 flex gap-3">
-          <span class="text-base">✏️</span>
-          <div>
-            <div class="font-semibold text-amber-300">[수정] 인지 과부하 방지 & 집중도 골든타임 보정</div>
-            <p class="text-slate-300 mt-1">AI 1차 제안: "목요일 12:00~15:00 공강 전체를 쉬지 않고 조직행동론 팀플 회의로 배정"<br>
-            <strong class="text-amber-400">보정 사유:</strong> 15:00~18:00 연속 3시간 영어 강의를 고려하여, 12:00~13:00 봉구스밥버거 여유 식사 + 13:10~14:40 집중 과제 블록으로 분할.</p>
-          </div>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-800/50 flex gap-3">
-          <span class="text-base">✅</span>
-          <div>
-            <div class="font-semibold text-emerald-300">[채택] 검증 완료된 최적 블록</div>
-            <p class="text-slate-300 mt-1">• 화요일: 310관 B4 참슬기식당 (0분 이동, 30분 식사, 13:00 전 복귀 완료)<br>
-            • 수요일: 13:45 303관 법학관 구시아푸드 (피크타임 피해 쾌적 착석)<br>
-            • 목요일: 12:15 후문 봉구스밥버거 (도보 2분, 웨이팅 0분)</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-3 border-t border-slate-800 flex justify-end gap-2 text-xs">
-        <button onclick="closeHitlModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">닫기</button>
-        <button onclick="applyHitlPlan()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-md shadow-emerald-700/20 transition">검증 플랜 캘린더 반영</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Config / Sync Setup Modal -->
-  <div id="config-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-slate-100 text-sm">iCloud 캘린더 동기화 설정</h3>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+  <!-- Settings Modal -->
+  <div id="config-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 w-full max-w-lg rounded-2xl shadow-xl p-6 flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-800 text-sm">캘린더 동기화 설정</h3>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600">✕</button>
       </div>
 
       <div class="flex flex-col gap-3 text-xs">
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">iCloud Webcal URL</label>
-          <input type="text" id="webcal-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono focus:border-blue-500 focus:outline-none" />
-          <p class="text-slate-500 mt-1">공개 캘린더 URL을 입력하면 실시간으로 변동 일정을 감지합니다.</p>
+          <label class="block text-slate-700 font-semibold mb-1">iCloud Webcal URL</label>
+          <input type="text" id="webcal-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono text-[11px] focus:outline-none focus:border-blue-400" />
         </div>
-
-        <div class="pt-2">
-          <label class="block text-slate-300 font-semibold mb-1">수동 ICS 텍스트 붙여넣기 (네트워크 차단 시 비상용)</label>
-          <textarea id="manual-ics-text" rows="4" placeholder="BEGIN:VCALENDAR... 형식의 ICS 전문을 붙여넣으셔도 100% 즉시 반영됩니다." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 font-mono text-[11px] focus:border-blue-500 focus:outline-none"></textarea>
+        <div>
+          <label class="block text-slate-700 font-semibold mb-1">수동 ICS 텍스트 직접 붙여넣기</label>
+          <textarea id="manual-ics-text" rows="4" placeholder="BEGIN:VCALENDAR... 전문 붙여넣기" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono text-[11px] focus:outline-none focus:border-blue-400"></textarea>
         </div>
       </div>
 
-      <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
-        <button onclick="parseManualIcs()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200">텍스트로 수동 반영</button>
+      <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+        <button onclick="parseManualIcs()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">텍스트 수동 반영</button>
         <div class="flex gap-2">
-          <button onclick="closeConfigModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300">취소</button>
-          <button onclick="saveAndSyncUrl()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold">저장 및 동기화</button>
+          <button onclick="closeConfigModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600">닫기</button>
+          <button onclick="saveAndSyncUrl()" class="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold">저장 및 동기화</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Add Restaurant Modal -->
-  <div id="restaurant-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-slate-100 text-sm">새로운 단골 밥집 추가</h3>
-        <button onclick="closeAddRestaurantModal()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
-      </div>
-
-      <div class="flex flex-col gap-3 text-xs">
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">식당 이름</label>
-          <input type="text" id="new-rest-name" placeholder="예: 최고당돈가스" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" />
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">위치 영역</label>
-          <select id="new-rest-loc" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
-            <option value="정문">정문 (수업 20분 전 출발)</option>
-            <option value="후문">후문 (수업 10~15분 전 출발)</option>
-            <option value="교내">교내 (310관/303관 등 - 수업 5분 전)</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">특이사항 / 웨이팅 컷 규칙</label>
-          <input type="text" id="new-rest-rule" placeholder="예: 12시 넘으면 웨이팅 15분 / 비오면 불가" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" />
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">최소 필요 공강 시간 (분)</label>
-          <input type="number" id="new-rest-min" value="60" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" />
-        </div>
-      </div>
-
-      <div class="pt-3 border-t border-slate-800 flex justify-end gap-2 text-xs">
-        <button onclick="closeAddRestaurantModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300">취소</button>
-        <button onclick="saveNewRestaurant()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold">식당 DB 등록</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Application Logic -->
+  <!-- Script Logic -->
   <script>
-    // 1. Data Store
     const DEFAULT_WEBCAL = "webcal://p137-caldav.icloud.com/published/2/MTIxNTIzOTEwMzkxMjE1Mn5HcxPzc40MbzqxrImK9trVeQPV4zMfxEW-eRO8fVS33yUzmKuFonS0qlRwcupgLUTbiWuMCsx0EWPTb2wMoqs";
 
-    // Fixed CAU Courses (All in 310)
+    // Fixed CAU Courses (100% in 310)
     const FIXED_COURSES = {
       '화': [
-        { name: "IMC", prof: "이미라", room: "310관 932호", start: "10:30", end: "12:00", color: "blue" },
-        { name: "운영관리 (영어A)", prof: "윤지호", room: "310관 928호", start: "13:30", end: "15:00", color: "blue" },
-        { name: "미래사회와미디어", prof: "류숙", room: "310관 B602호", start: "15:00", end: "17:00", color: "blue" }
+        { name: "IMC", room: "310관 932호", prof: "이미라", start: "10:30", end: "12:00" },
+        { name: "운영관리", room: "310관 928호", prof: "윤지호", start: "13:30", end: "15:00" },
+        { name: "미래사회와미디어", room: "310관 B602호", prof: "류숙", start: "15:00", end: "17:00" }
       ],
       '수': [
-        { name: "데이터 사이언스 입문: 이비즈니스 응용 (영어A)", prof: "엄성용", room: "310관 704호", start: "15:00", end: "18:00", color: "blue" }
+        { name: "데이터사이언스입문", room: "310관 704호", prof: "엄성용", start: "15:00", end: "18:00" }
       ],
       '목': [
-        { name: "IMC", prof: "이미라", room: "310관 932호", start: "10:30", end: "12:00", color: "blue" },
-        { name: "조직행동론 (영어A)", prof: "심소현", room: "310관 804호", start: "15:00", end: "18:00", color: "blue" }
+        { name: "IMC", room: "310관 932호", prof: "이미라", start: "10:30", end: "12:00" },
+        { name: "조직행동론", room: "310관 804호", prof: "심소현", start: "15:00", end: "18:00" }
       ],
       '금': [
-        { name: "경영경제데이터분석 소프트웨어 (영어A)", prof: "김은지", room: "310관 607호", start: "15:00", end: "18:00", color: "blue" }
+        { name: "경영경제데이터분석", room: "310관 607호", prof: "김은지", start: "15:00", end: "18:00" }
       ],
       '월': []
     };
 
     // Restaurant Database
-    let RESTAURANT_DB = [
-      // 정문
-      { id: 'r1', name: '칠기마라탕', loc: '정문', priority: 1, minTime: 65, rule: '12:10 넘으면 웨이팅 15분 가산, 1시 이후 안전', tag: '최우선추천' },
+    const RESTAURANTS = [
+      { id: 'r1', name: '칠기마라탕', loc: '정문', priority: 1, minTime: 65, rule: '12:10 넘으면 웨이팅 15분 가산, 1시 이후 안전', tag: '최우선' },
       { id: 'r2', name: '맥도날드', loc: '정문', priority: 2, minTime: 50, rule: '12:10 넘으면 입장 불가 (기각)', tag: '패스트푸드' },
-      { id: 'r3', name: '일이삼식당 (제육)', loc: '정문', priority: 3, minTime: 65, rule: '12:10 넘으면 웨이팅 극심 기각, 1시 이후 가능', tag: '한식백반' },
-      { id: 'r4', name: '양푼이 (국물두루치기)', loc: '정문', priority: 4, minTime: 70, rule: '착석 후 음식 조리 10분 소요', tag: '한식' },
+      { id: 'r3', name: '일이삼식당 (제육)', loc: '정문', priority: 3, minTime: 65, rule: '12:10 넘으면 웨이팅 극심 기각, 1시 이후 가능', tag: '백반' },
+      { id: 'r4', name: '양푼이 (국물두루치기)', loc: '정문', priority: 4, minTime: 70, rule: '착석 후 조리 10분 소요', tag: '한식' },
       { id: 'r5', name: '정부대찌개', loc: '정문', priority: 5, minTime: 75, rule: '시간 많을 때 추천', tag: '여유' },
-      { id: 'r6', name: '수목식당 (칼국수)', loc: '정문/시장', priority: 6, minTime: 90, rule: '정말 시간 많을 때만 가능', tag: '시장로컬' },
-      { id: 'r7', name: '진미순대', loc: '정문/시장', priority: 7, minTime: 90, rule: '정말 시간 많을 때만 가능', tag: '시장로컬' },
+      { id: 'r6', name: '수목식당', loc: '정문/시장', priority: 6, minTime: 90, rule: '정말 시간 많을 때만 가능', tag: '칼국수' },
+      { id: 'r7', name: '진미순대', loc: '정문/시장', priority: 7, minTime: 90, rule: '정말 시간 많을 때만 가능', tag: '순대국' },
       { id: 'r8', name: '치즈밥있슈', loc: '정문', priority: 8, minTime: 60, rule: '아주 가끔 와일드카드 추천', tag: '별미' },
-      { id: 'r9', name: '재팔이네닭발', loc: '정문', priority: 9, minTime: 80, rule: '저녁 시간 여유 있을 때', tag: '저녁전용', isDinner: true },
-
-      // 교내
-      { id: 'c1', name: '310관 참슬기식당', loc: '교내', priority: 1, minTime: 35, rule: '310관 B4 이동 0분, 가장 빠름', tag: '학식초밀착' },
-      { id: 'c2', name: '303관 구시아푸드', loc: '교내', priority: 2, minTime: 45, rule: '법학관 B1 도보 1분, 메뉴 다양', tag: '교내' },
-      { id: 'c3', name: '308관 기숙사식당', loc: '교내', priority: 3, minTime: 50, rule: '학식만 있음', tag: '기숙사' },
-      { id: 'c4', name: '309관 기숙사식당', loc: '교내', priority: 4, minTime: 50, rule: '은근 메뉴 많음', tag: '기숙사' },
-
-      // 후문
-      { id: 'b1', name: '할매순대국', loc: '후문', priority: 1, minTime: 55, rule: '12:00 넘으면 기각 (엉터리해장국으로 대체)', tag: '국밥' },
+      { id: 'r9', name: '재팔이네닭발', loc: '정문', priority: 9, minTime: 80, rule: '저녁 시간 여유 있을 때', tag: '저녁' },
+      { id: 'c1', name: '310관 참슬기식당', loc: '교내', priority: 1, minTime: 35, rule: '310관 B4 이동 0분, 가장 빠름', tag: '초밀착학식' },
+      { id: 'c2', name: '303관 구시아푸드', loc: '교내', priority: 2, minTime: 45, rule: '법학관 B1 도보 1분', tag: '교내' },
+      { id: 'c3', name: '308/309관 식당', loc: '교내', priority: 3, minTime: 50, rule: '기숙사 식당', tag: '학식' },
+      { id: 'b1', name: '할매순대국', loc: '후문', priority: 1, minTime: 55, rule: '12:00 넘으면 기각 (엉터리해장국 추천)', tag: '국밥' },
       { id: 'b2', name: '항아리된장족발', loc: '후문', priority: 2, minTime: 60, rule: '12:10 넘으면 기각', tag: '한식' },
       { id: 'b3', name: '세울타코', loc: '후문', priority: 3, minTime: 55, rule: '후문 도보 3분 컷', tag: '타코' },
-      { id: 'b4', name: '이탈리아돈가스냉면', loc: '후문', priority: 4, minTime: 55, rule: '추울 때는 기각', tag: '계절식' },
-      { id: 'b5', name: '봉구스밥버거 중앙대후문점', loc: '후문', priority: 5, minTime: 35, rule: '후문 도보 2분, 가장 빠른 한 끼', tag: '초간단' }
+      { id: 'b4', name: '이탈리아돈가스냉면', loc: '후문', priority: 4, minTime: 55, rule: '추울 때는 기각', tag: '계절메뉴' },
+      { id: 'b5', name: '봉구스밥버거 후문점', loc: '후문', priority: 5, minTime: 35, rule: '후문 도보 2분 컷', tag: '초간단' }
     ];
 
-    // State
     let currentDay = '화';
     let isColdWeather = false;
     let icloudEvents = [];
-    let customMealSlot = null;
+    let todoItems = [
+      { id: 1, text: "조직행동론 영어 아티클 요약 리딩", done: false },
+      { id: 2, text: "운영관리 3주차 연습문제 풀이", done: true },
+      { id: 3, text: "경영경제소프트웨어 실습 코드 점검", done: false }
+    ];
 
-    // 2. Initialization
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('webcal-input').value = localStorage.getItem('cau_webcal_url') || DEFAULT_WEBCAL;
-      renderTimeTable();
+      renderWeeklyCalendar();
+      renderTodoList();
       triggerICloudSync();
     });
 
-    // 3. iCloud Parser with Multi-Proxy Failover
+    // 캘린더 요일 전환
+    function setActiveDay(day) {
+      currentDay = day;
+      document.querySelectorAll('[id^="col-head-"]').forEach(el => {
+        el.className = "cursor-pointer py-1 rounded-lg hover:bg-slate-100 transition text-slate-600";
+      });
+      document.getElementById(`col-head-${day}`).className = "cursor-pointer py-1 rounded-lg font-bold bg-blue-50 text-blue-600";
+      document.getElementById('selected-day-label').innerText = `${day}요일`;
+
+      // 컬럼 하이라이트
+      ['월','화','수','목','금'].forEach(d => {
+        const col = document.getElementById(`cal-col-${d}`);
+        col.className = d === day ? "relative p-1 bg-blue-50/30" : "relative p-1 bg-slate-50/40";
+      });
+
+      updateMealRecommendationsForDay(day);
+    }
+
+    // 주간 캘린더 그리드 렌더링
+    function renderWeeklyCalendar() {
+      const days = ['월', '화', '수', '목', '금'];
+      const baseStartHour = 9; // 09:00
+      const totalHours = 10;   // 09:00 ~ 19:00
+
+      days.forEach(day => {
+        const col = document.getElementById(`cal-col-${day}`);
+        col.innerHTML = '';
+
+        const events = [...(FIXED_COURSES[day] || [])];
+        
+        // iCloud 일정이 있는 경우 추가
+        if (day === '목') {
+          events.push(...icloudEvents.slice(0, 1));
+        }
+
+        // 수업 블록 렌더링
+        events.forEach(ev => {
+          const startMins = timeToMins(ev.start);
+          const endMins = timeToMins(ev.end);
+          const topPercent = ((startMins - baseStartHour * 60) / (totalHours * 60)) * 100;
+          const heightPercent = ((endMins - startMins) / (totalHours * 60)) * 100;
+
+          const isICloud = ev.color === 'amber';
+          const el = document.createElement('div');
+          el.className = `absolute left-1 right-1 rounded-xl p-2 text-left shadow-2xs border transition cursor-pointer hover:shadow-md ${
+            isICloud 
+              ? 'bg-pastel-orange border-orange-200 text-pastel-orangeText' 
+              : 'bg-pastel-blue border-blue-200 text-pastel-blueText'
+          }`;
+          el.style.top = `${Math.max(topPercent, 0)}%`;
+          el.style.height = `${Math.max(heightPercent, 8)}%`;
+
+          el.innerHTML = `
+            <div class="font-bold text-[11px] leading-tight truncate">${ev.name}</div>
+            <div class="text-[10px] opacity-80 truncate mt-0.5">${ev.room || '일정'}</div>
+            <div class="text-[9px] font-mono opacity-70 mt-0.5">${ev.start}~${ev.end}</div>
+          `;
+          col.appendChild(el);
+        });
+
+        // 화요일 공강 식사 블록 시각화 (12:00 ~ 13:30)
+        if (day === '화') {
+          const lunchTop = ((timeToMins("12:00") - baseStartHour * 60) / (totalHours * 60)) * 100;
+          const lunchHeight = ((90) / (totalHours * 60)) * 100;
+          const lunchEl = document.createElement('div');
+          lunchEl.className = "absolute left-1 right-1 rounded-xl p-2 text-left bg-pastel-green border border-green-200 text-pastel-greenText shadow-2xs cursor-pointer";
+          lunchEl.style.top = `${lunchTop}%`;
+          lunchEl.style.height = `${lunchHeight}%`;
+          lunchEl.innerHTML = `
+            <div class="font-bold text-[11px] flex items-center gap-1">🍱 점심 공강</div>
+            <div class="text-[10px] opacity-90 truncate">추천 밥집 탐색</div>
+            <div class="text-[9px] font-mono opacity-80">12:00~13:30 (90분)</div>
+          `;
+          lunchEl.onclick = () => setActiveDay('화');
+          col.appendChild(lunchEl);
+        }
+      });
+
+      updateMealRecommendationsForDay(currentDay);
+    }
+
+    // 밥집 추천 업데이트
+    function updateMealRecommendationsForDay(day) {
+      const list = document.getElementById('meal-list');
+      list.innerHTML = '';
+
+      let availableMins = 90;
+      let startClock = "12:00";
+
+      if (day === '수' || day === '금') {
+        availableMins = 120;
+        document.getElementById('meal-slot-badge').innerText = `13:00 ~ 15:00 (수업 전 여유)`;
+      } else if (day === '목') {
+        availableMins = 180;
+        document.getElementById('meal-slot-badge').innerText = `12:00 ~ 15:00 (3시간 황금공강)`;
+      } else {
+        document.getElementById('meal-slot-badge').innerText = `12:00 ~ 13:30 (90분 공강)`;
+      }
+
+      const [startHour, startMin] = startClock.split(':').map(Number);
+      const startTotalMin = startHour * 60 + startMin;
+
+      // 규칙 평가
+      let candidates = RESTAURANTS.map(r => {
+        let isFeasible = true;
+        let rejectReason = '';
+        let waitMins = 0;
+        let walkBackMins = r.loc === '정문' ? 20 : (r.loc === '후문' ? 15 : 5);
+        let dineMins = 40;
+
+        if (r.id === 'r1' && startTotalMin > 730 && startTotalMin < 780) waitMins = 15;
+        if ((r.id === 'r2' || r.id === 'r3') && startTotalMin > 730 && startTotalMin < 780) {
+          isFeasible = false;
+          rejectReason = '12:10 초과 웨이팅 기각';
+        }
+        if (r.id === 'r4') dineMins = 50;
+        if (r.id === 'b1' && startTotalMin > 720) {
+          isFeasible = false;
+          rejectReason = '12:00 초과 기각 (엉터리해장국 권장)';
+        }
+        if (r.id === 'b4' && isColdWeather) {
+          isFeasible = false;
+          rejectReason = '쌀쌀한 날씨 기각';
+        }
+
+        const totalNeed = walkBackMins + waitMins + dineMins;
+        if (totalNeed > availableMins && isFeasible) {
+          isFeasible = false;
+          rejectReason = `시간 부족 (${totalNeed}분 필요)`;
+        }
+
+        return { ...r, isFeasible, rejectReason, totalNeed, walkBackMins };
+      });
+
+      candidates.sort((a, b) => (b.isFeasible - a.isFeasible) || (a.priority - b.priority));
+
+      candidates.forEach(c => {
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-xl border transition ${
+          c.isFeasible ? 'bg-white border-slate-200 shadow-2xs hover:border-blue-300' : 'bg-slate-50 border-slate-100 opacity-55'
+        }`;
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-xs text-slate-800">${c.name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                c.loc === '정문' ? 'bg-pastel-rose text-pastel-roseText' :
+                c.loc === '후문' ? 'bg-pastel-orange text-pastel-orangeText' :
+                'bg-pastel-green text-pastel-greenText'
+              }">${c.loc}</span>
+            </div>
+            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full ${
+              c.isFeasible ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-500 border border-rose-200'
+            }">${c.isFeasible ? '방문 가능' : '기각'}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">${c.rule}</p>
+          <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+            <span>수업 ${c.walkBackMins}분 전 출발</span>
+            <span class="${c.isFeasible ? 'text-emerald-600 font-semibold' : 'text-rose-400'}">${c.isFeasible ? `예상 ${c.totalNeed}분 소요` : c.rejectReason}</span>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // 미리알림 리스트 관리
+    function renderTodoList() {
+      const list = document.getElementById('todo-list');
+      list.innerHTML = '';
+      const doneCount = todoItems.filter(t => t.done).length;
+      document.getElementById('todo-count').innerText = `${doneCount}/${todoItems.length} 완료`;
+
+      todoItems.forEach(item => {
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-100";
+        row.innerHTML = `
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleTodo(${item.id})" class="w-4 h-4 rounded text-blue-500 border-slate-300 focus:ring-0">
+            <span class="text-xs ${item.done ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}">${item.text}</span>
+          </label>
+          <button onclick="removeTodo(${item.id})" class="text-slate-300 hover:text-rose-400 text-xs px-1">✕</button>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function addTodo() {
+      const input = document.getElementById('todo-input');
+      const val = input.value.trim();
+      if (!val) return;
+      todoItems.unshift({ id: Date.now(), text: val, done: false });
+      input.value = '';
+      renderTodoList();
+    }
+
+    function toggleTodo(id) {
+      const item = todoItems.find(t => t.id === id);
+      if (item) item.done = !item.done;
+      renderTodoList();
+    }
+
+    function removeTodo(id) {
+      todoItems = todoItems.filter(t => t.id !== id);
+      renderTodoList();
+    }
+
+    // iCloud 동기화 (3중 프록시)
     async function triggerICloudSync() {
       const urlInput = document.getElementById('webcal-input').value.trim() || DEFAULT_WEBCAL;
       const cleanHttps = urlInput.replace(/^webcal:\/\//i, 'https://');
       
-      updateSyncStatus('syncing', 'iCloud 일정 연결 시도 중...');
-      showBanner('iCloud 캘린더 일정을 가져오는 중입니다...', 'blue');
+      const badge = document.getElementById('sync-badge');
+      const label = document.getElementById('sync-label');
+      label.innerText = "iCloud 연결 중...";
 
-      // 3단계 프록시 목록
       const proxies = [
         `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(cleanHttps)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanHttps)}`,
@@ -398,45 +518,46 @@
       ];
 
       let icsContent = null;
-
-      for (let i = 0; i < proxies.length; i++) {
+      for (let p of proxies) {
         try {
-          const res = await fetch(proxies[i], { cache: 'no-store' });
+          const res = await fetch(p, { cache: 'no-store' });
           if (res.ok) {
-            const text = await res.text();
-            if (text.includes('BEGIN:VCALENDAR')) {
-              icsContent = text;
+            const txt = await res.text();
+            if (txt.includes('BEGIN:VCALENDAR')) {
+              icsContent = txt;
               break;
             }
           }
-        } catch (e) {
-          console.warn(`Proxy ${i} fail:`, e);
-        }
+        } catch (e) {}
       }
 
       if (icsContent) {
         parseIcsData(icsContent);
-        updateSyncStatus('success', `동기화 완료 (${icloudEvents.length}개 감지)`);
-        showBanner(`iCloud 일정을 성공적으로 동기화했습니다! (${icloudEvents.length}개 일정 파싱됨)`, 'emerald');
+        label.innerText = `동기화 완료 (${icloudEvents.length}개)`;
       } else {
-        updateSyncStatus('error', '동기화 실패 (설정에서 수동 텍스트 지원)');
-        showBanner('프록시 연결이 지연되고 있습니다. 상단 ⚙️ 설정에서 ICS 텍스트를 붙여넣으셔도 즉시 반영됩니다.', 'amber');
+        label.innerText = "연결 지연 (수동지원)";
       }
     }
 
     function parseIcsData(ics) {
       icloudEvents = [];
       const lines = ics.split(/\r\n|\n|\r/);
-      let inEvent = false;
-      let cur = {};
+      let inEvent = false, cur = {};
 
       for (let line of lines) {
-        if (line.startsWith('BEGIN:VEVENT')) {
-          inEvent = true;
-          cur = {};
-        } else if (line.startsWith('END:VEVENT')) {
+        if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; cur = {}; }
+        else if (line.startsWith('END:VEVENT')) {
           if (cur.summary && cur.dtstart) {
-            icloudEvents.push(formatIcsEvent(cur));
+            let start = "13:00", end = "14:00";
+            if (cur.dtstart.length >= 13) {
+              const h = (parseInt(cur.dtstart.substr(9, 2), 10) + 9) % 24;
+              start = `${String(h).padStart(2,'0')}:${cur.dtstart.substr(11, 2)}`;
+            }
+            if (cur.dtend && cur.dtend.length >= 13) {
+              const h = (parseInt(cur.dtend.substr(9, 2), 10) + 9) % 24;
+              end = `${String(h).padStart(2,'0')}:${cur.dtend.substr(11, 2)}`;
+            }
+            icloudEvents.push({ name: `[iCloud] ${cur.summary}`, room: cur.loc || '개인 일정', start, end, color: 'amber' });
           }
           inEvent = false;
         } else if (inEvent) {
@@ -446,263 +567,9 @@
           if (line.startsWith('LOCATION:')) cur.loc = line.substring(9);
         }
       }
-
-      renderTimeTable();
+      renderWeeklyCalendar();
     }
 
-    function formatIcsEvent(raw) {
-      let day = '화'; // Default match
-      let start = "12:00";
-      let end = "13:00";
-
-      if (raw.dtstart && raw.dtstart.length >= 13) {
-        const hour = parseInt(raw.dtstart.substr(9, 2), 10);
-        const min = raw.dtstart.substr(11, 2);
-        // UTC to KST (+9h)
-        const kstHour = (hour + 9) % 24;
-        start = `${String(kstHour).padStart(2, '0')}:${min}`;
-      }
-
-      if (raw.dtend && raw.dtend.length >= 13) {
-        const hour = parseInt(raw.dtend.substr(9, 2), 10);
-        const min = raw.dtend.substr(11, 2);
-        const kstHour = (hour + 9) % 24;
-        end = `${String(kstHour).padStart(2, '0')}:${min}`;
-      }
-
-      return {
-        name: `[iCloud] ${raw.summary || '일정'}`,
-        room: raw.loc || '캘린더 일정',
-        start: start,
-        end: end,
-        color: 'amber'
-      };
-    }
-
-    // 4. TimeTable Renderer
-    function selectDay(day) {
-      currentDay = day;
-      document.querySelectorAll('[id^="tab-"]').forEach(el => {
-        el.className = "px-3.5 py-1.5 rounded-md text-xs font-semibold transition text-slate-400 hover:text-slate-200";
-      });
-      document.getElementById(`tab-${day}`).className = "px-3.5 py-1.5 rounded-md text-xs font-semibold transition bg-blue-600 text-white";
-      document.getElementById('day-title').innerText = `${day}요일 타임테이블`;
-      renderTimeTable();
-    }
-
-    function renderTimeTable() {
-      const container = document.getElementById('timeline-container');
-      container.innerHTML = '';
-
-      let dayEvents = [...(FIXED_COURSES[currentDay] || [])];
-
-      // Merge iCloud events (sample distribution for visualization)
-      if (currentDay === '목') {
-        dayEvents.push(...icloudEvents.slice(0, 1));
-      } else if (currentDay === '월') {
-        dayEvents.push(...icloudEvents.slice(0, 2));
-      }
-
-      // Sort chronological
-      dayEvents.sort((a, b) => a.start.localeCompare(b.start));
-
-      if (dayEvents.length === 0) {
-        container.innerHTML = `
-          <div class="flex-1 flex flex-col items-center justify-center p-8 text-slate-500 text-xs">
-            <span class="text-3xl mb-2">🎉</span>
-            <p class="font-medium text-slate-300">정규 강의가 없는 날입니다 (공강/자율학습)</p>
-            <p class="mt-1">시간에 구애받지 않고 정문/흑석시장 맛집이나 도서관 자습을 즐기세요.</p>
-          </div>
-        `;
-        computeRecommendations(120, "12:00");
-        return;
-      }
-
-      // Detect Gaps (Lunch Slots)
-      let detectedGap = null;
-      for (let i = 0; i < dayEvents.length - 1; i++) {
-        const prevEnd = dayEvents[i].end;
-        const nextStart = dayEvents[i + 1].start;
-        const gapMins = timeToMins(nextStart) - timeToMins(prevEnd);
-
-        if (gapMins >= 30) {
-          detectedGap = { start: prevEnd, end: nextStart, mins: gapMins };
-          break;
-        }
-      }
-
-      // Render Events
-      dayEvents.forEach((ev, idx) => {
-        const isICloud = ev.color === 'amber';
-        const card = document.createElement('div');
-        card.className = `p-3.5 rounded-xl border flex items-center justify-between ${
-          isICloud ? 'bg-amber-950/20 border-amber-800/60 text-amber-200' : 'bg-slate-900/90 border-slate-750 text-slate-200'
-        }`;
-        card.innerHTML = `
-          <div class="flex items-center gap-3">
-            <div class="w-1.5 h-10 rounded-full ${isICloud ? 'bg-amber-400' : 'bg-blue-500'}"></div>
-            <div>
-              <div class="font-bold text-sm text-slate-100 flex items-center gap-2">
-                ${ev.name}
-                ${isICloud ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-900/70 border border-amber-700/50 text-amber-300">iCloud</span>' : ''}
-              </div>
-              <div class="text-xs text-slate-400 mt-0.5">${ev.room} ${ev.prof ? `· ${ev.prof} 교수님` : ''}</div>
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="text-xs font-mono font-semibold text-slate-300">${ev.start} ~ ${ev.end}</div>
-            <div class="text-[11px] text-slate-500">${timeToMins(ev.end) - timeToMins(ev.start)}분간 진행</div>
-          </div>
-        `;
-        container.appendChild(card);
-
-        // Insert gap slot if between this and next
-        if (detectedGap && ev.end === detectedGap.start) {
-          const gapCard = document.createElement('div');
-          gapCard.className = "p-3 rounded-xl border border-dashed border-emerald-600/70 bg-emerald-950/20 flex items-center justify-between";
-          gapCard.innerHTML = `
-            <div class="flex items-center gap-2 text-emerald-300 text-xs font-medium">
-              <span class="text-base">🍱</span>
-              <div>
-                <span>점심 공강 블록: <strong>${detectedGap.start} ~ ${detectedGap.end}</strong></span>
-                <span class="ml-2 text-emerald-400/80 font-mono">(${detectedGap.mins}분 가용)</span>
-              </div>
-            </div>
-            <button onclick="focusMealGap('${detectedGap.mins}', '${detectedGap.start}')" class="px-2.5 py-1 rounded bg-emerald-800/60 hover:bg-emerald-700/80 text-emerald-200 text-xs transition">
-              맞춤 밥집 확인
-            </button>
-          `;
-          container.appendChild(gapCard);
-        }
-      });
-
-      // Update Summary & Matcher
-      if (detectedGap) {
-        document.getElementById('gap-summary').innerText = `공강 ${detectedGap.mins}분 감지 (${detectedGap.start}~${detectedGap.end})`;
-        document.getElementById('active-slot-badge').innerText = `${detectedGap.start} ~ ${detectedGap.end} (${detectedGap.mins}분)`;
-        computeRecommendations(detectedGap.mins, detectedGap.start);
-      } else {
-        document.getElementById('gap-summary').innerText = `연강 또는 오후 수업`;
-        document.getElementById('active-slot-badge').innerText = `수업 전/후 여유`;
-        computeRecommendations(90, "12:00");
-      }
-    }
-
-    // 5. Meal Recommendation Matching Engine
-    function computeRecommendations(availableMins, startClock) {
-      const listEl = document.getElementById('meal-recommendations');
-      listEl.innerHTML = '';
-
-      const [startHour, startMin] = startClock.split(':').map(Number);
-      const startTotalMin = startHour * 60 + startMin;
-
-      // Filter and score restaurants
-      let candidates = RESTAURANT_DB.map(r => {
-        let isFeasible = true;
-        let rejectReason = '';
-        let estimatedWait = 0;
-        let walkBackMins = r.loc === '정문' ? 20 : (r.loc === '후문' ? 15 : 5);
-        let dineMins = 40;
-
-        // Specific Rules Evaluation
-        if (r.id === 'r1') { // 칠기마라탕
-          if (startTotalMin > 730 && startTotalMin < 780) { // 12:10 ~ 13:00
-            estimatedWait = 15;
-          }
-        }
-        if (r.id === 'r2' || r.id === 'r3') { // 맥도날드, 일이삼
-          if (startTotalMin > 730 && startTotalMin < 780) {
-            isFeasible = false;
-            rejectReason = '12:10 넘어 도착 시 웨이팅 극심 기각';
-          }
-        }
-        if (r.id === 'r4') { // 양푼이
-          dineMins = 50; // 조리 10분 추가
-        }
-        if (r.id === 'b1') { // 할매순대국
-          if (startTotalMin > 720) {
-            isFeasible = false;
-            rejectReason = '12:00 이후 만석 기각 (엉터리해장국 대체 권장)';
-          }
-        }
-        if (r.id === 'b2') { // 항아리된장족발
-          if (startTotalMin > 730) {
-            isFeasible = false;
-            rejectReason = '12:10 초과 기각';
-          }
-        }
-        if (r.id === 'b4' && isColdWeather) { // 이탈리아돈가스냉면
-          isFeasible = false;
-          rejectReason = '쌀쌀한 날씨 비추천 기각';
-        }
-
-        const totalRequired = walkBackMins + estimatedWait + dineMins;
-
-        if (totalRequired > availableMins && isFeasible) {
-          isFeasible = false;
-          rejectReason = `시간 부족 (필요 ${totalRequired}분 > 가용 ${availableMins}분)`;
-        }
-
-        return {
-          ...r,
-          isFeasible,
-          rejectReason,
-          estimatedWait,
-          walkBackMins,
-          totalRequired
-        };
-      });
-
-      // Sort: feasible first, then by priority
-      candidates.sort((a, b) => {
-        if (a.isFeasible && !b.isFeasible) return -1;
-        if (!a.isFeasible && b.isFeasible) return 1;
-        return a.priority - b.priority;
-      });
-
-      // Render Cards
-      candidates.forEach(c => {
-        const card = document.createElement('div');
-        card.className = `p-3 rounded-xl border transition ${
-          c.isFeasible 
-            ? 'bg-slate-950/80 border-slate-750 hover:border-slate-600' 
-            : 'bg-slate-950/40 border-slate-850 opacity-60'
-        }`;
-
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <span class="font-bold text-xs text-slate-100">${c.name}</span>
-                <span class="text-[10px] px-1.5 py-0.2 rounded font-medium ${
-                  c.loc === '정문' ? 'bg-rose-950 text-rose-300 border border-rose-800/60' :
-                  c.loc === '후문' ? 'bg-amber-950 text-amber-300 border border-amber-800/60' :
-                  'bg-emerald-950 text-emerald-300 border border-emerald-800/60'
-                }">${c.loc}</span>
-                ${c.tag ? `<span class="text-[10px] text-slate-400">#${c.tag}</span>` : ''}
-              </div>
-              <p class="text-[11px] text-slate-400 mt-1">${c.rule}</p>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded ${
-              c.isFeasible ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
-            }">
-              ${c.isFeasible ? '방문 가능' : '기각'}
-            </span>
-          </div>
-
-          <div class="mt-2.5 pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] text-slate-400">
-            <span>수업 ${c.walkBackMins}분 전 복귀 출발 필수</span>
-            ${c.isFeasible 
-              ? `<span class="text-emerald-400 font-medium">예상 ${c.totalRequired}분 소요</span>` 
-              : `<span class="text-rose-400">${c.rejectReason}</span>`
-            }
-          </div>
-        `;
-        listEl.appendChild(card);
-      });
-    }
-
-    // 6. Helpers & Actions
     function timeToMins(t) {
       const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
@@ -711,123 +578,34 @@
     function toggleWeather() {
       isColdWeather = !isColdWeather;
       document.getElementById('weather-icon').innerText = isColdWeather ? '❄️' : '☀️';
-      document.getElementById('weather-text').innerText = isColdWeather ? '날씨: 쌀쌀함' : '날씨: 보통';
-      renderTimeTable();
-    }
-
-    function updateSyncStatus(status, label) {
-      const badge = document.getElementById('sync-badge');
-      const dot = document.getElementById('sync-dot');
-      const text = document.getElementById('sync-label');
-
-      text.innerText = label;
-      if (status === 'syncing') {
-        dot.className = "w-2 h-2 rounded-full bg-blue-400 badge-pulse";
-      } else if (status === 'success') {
-        dot.className = "w-2 h-2 rounded-full bg-emerald-400";
-      } else {
-        dot.className = "w-2 h-2 rounded-full bg-rose-400";
-      }
-    }
-
-    function showBanner(msg, color) {
-      const b = document.getElementById('status-banner');
-      const m = document.getElementById('status-msg');
-      m.innerHTML = `<span class="w-2 h-2 rounded-full bg-${color}-400"></span><span>${msg}</span>`;
-      b.classList.remove('hidden');
-    }
-
-    function focusMealGap(mins, start) {
-      computeRecommendations(parseInt(mins), start);
+      document.getElementById('weather-text').innerText = isColdWeather ? '날씨: 쌀쌀함' : '날씨: 쾌청';
+      updateMealRecommendationsForDay(currentDay);
     }
 
     function copyToTodomate() {
-      const dayName = currentDay;
-      const text = `[중앙대 310관 일정 - ${dayName}요일]\n` +
-        `• 12:00 310관 출발 점심 식사 (수업 20분 전 복귀 필수) #식사\n` +
-        `• 13:10 310관 9층 강의실 복귀 및 교재 점검 #공부\n` +
-        `• 당일 전공 영어 아티클 요약 정리 #과제`;
-      
-      navigator.clipboard.writeText(text).then(() => {
-        alert('투두메이트 포맷으로 복사되었습니다!\n앱의 [오늘 할 일]에 그대로 붙여넣으세요.');
-      });
+      const text = `[중앙대 310관 일정 - ${currentDay}요일]\n• 12:00 점심 식사 (수업 20분 전 복귀) #식사\n• 13:10 310관 강의실 복귀 #공부`;
+      navigator.clipboard.writeText(text).then(() => alert('투두메이트 포맷으로 복사되었습니다!'));
     }
 
-    function exportSingleIcs() {
-      const icsData = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//CAU 310 Dynamic Life Calendar//KO",
-        "BEGIN:VEVENT",
-        `SUMMARY:[점심] 310관 추천 식사`,
-        `DESCRIPTION:수업 20분 전(정문) 또는 15분 전(후문) 밥집에서 출발 필수`,
-        `DTSTART:${new Date().toISOString().slice(0,10).replace(/-/g,'')}T030000Z`,
-        `DTEND:${new Date().toISOString().slice(0,10).replace(/-/g,'')}T041500Z`,
-        "LOCATION:중앙대학교 310관 인근",
-        "END:VEVENT",
-        "END:VCALENDAR"
-      ].join("\r\n");
-
+    function exportIcsFile() {
+      const icsData = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:[점심] 310관 추천 식사\r\nDTSTART:20261028T030000Z\r\nDTEND:20261028T041500Z\r\nEND:VEVENT\r\nEND:VCALENDAR";
       const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
       const link = document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
-      link.setAttribute('download', `CAU_310_Plan_${currentDay}.ics`);
-      document.body.appendChild(link);
+      link.setAttribute('download', `CAU_Plan_${currentDay}.ics`);
       link.click();
-      document.body.removeChild(link);
-    }
-
-    // Modal Handlers
-    function openHitlModal() { document.getElementById('hitl-modal').classList.remove('hidden'); }
-    function closeHitlModal() { document.getElementById('hitl-modal').classList.add('hidden'); }
-    function applyHitlPlan() {
-      closeHitlModal();
-      alert('HITL 검증을 통과한 현실 스케줄이 캘린더에 성공적으로 확정되었습니다.');
     }
 
     function openConfigModal() { document.getElementById('config-modal').classList.remove('hidden'); }
     function closeConfigModal() { document.getElementById('config-modal').classList.add('hidden'); }
     function saveAndSyncUrl() {
-      const val = document.getElementById('webcal-input').value.trim();
-      localStorage.setItem('cau_webcal_url', val);
+      localStorage.setItem('cau_webcal_url', document.getElementById('webcal-input').value.trim());
       closeConfigModal();
       triggerICloudSync();
     }
     function parseManualIcs() {
       const txt = document.getElementById('manual-ics-text').value.trim();
-      if (txt) {
-        parseIcsData(txt);
-        closeConfigModal();
-        updateSyncStatus('success', '수동 ICS 텍스트 동기화 성공');
-        alert('ICS 텍스트 일정을 성공적으로 불러왔습니다!');
-      } else {
-        alert('ICS 텍스트를 입력해주세요.');
-      }
-    }
-
-    function openAddRestaurantModal() { document.getElementById('restaurant-modal').classList.remove('hidden'); }
-    function closeAddRestaurantModal() { document.getElementById('restaurant-modal').classList.add('hidden'); }
-    function saveNewRestaurant() {
-      const name = document.getElementById('new-rest-name').value.trim();
-      const loc = document.getElementById('new-rest-loc').value;
-      const rule = document.getElementById('new-rest-rule').value.trim();
-      const min = parseInt(document.getElementById('new-rest-min').value, 10) || 60;
-
-      if (!name) return alert('식당 이름을 입력해주세요.');
-
-      RESTAURANT_DB.unshift({
-        id: 'user_' + Date.now(),
-        name: name,
-        loc: loc,
-        priority: 1,
-        minTime: min,
-        rule: rule || '사용자 등록 식당',
-        tag: '내단골'
-      });
-
-      closeAddRestaurantModal();
-      renderTimeTable();
-      alert(`${name} 식당이 데이터베이스에 등록되었습니다!`);
+      if (txt) { parseIcsData(txt); closeConfigModal(); alert('수동 일정이 반영되었습니다.'); }
     }
   </script>
 </body>
